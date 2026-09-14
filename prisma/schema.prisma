@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PurchaseSource {
+  MANUAL
+  CSV
+  DEMO
+}
+
+enum MatchConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  NONE
+}
+
+enum MatchStatus {
+  UNREVIEWED
+  REVIEWED
+  DISMISSED
+  RETURNED
+  DISCARDED
+}
+
+model Purchase {
+  id           String         @id @default(cuid())
+  productName  String
+  brand        String
+  category     String
+  retailer     String
+  purchaseDate DateTime
+  upc          String?
+  lotNumber    String?
+  source       PurchaseSource @default(MANUAL)
+  createdAt    DateTime       @default(now())
+  matches      RecallMatch[]
+
+  @@index([purchaseDate])
+  @@index([upc])
+}
+
+model Recall {
+  id                    String        @id @default(cuid())
+  externalId            String
+  sourceAuthority       String
+  headline              String
+  description           String
+  brand                  String
+  productName            String
+  category               String
+  upcs                    String        @default("[]")
+  lotNumbers             String        @default("[]")
+  distributionStartDate DateTime?
+  distributionEndDate   DateTime?
+  recallDate             DateTime
+  severity               String?
+  recommendedAction      String
+  sourceUrl               String
+  rawData                 String        @default("{}")
+  isFixture               Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  matches                 RecallMatch[]
+
+  @@unique([sourceAuthority, externalId])
+  @@index([recallDate])
+}
+
+model RecallMatch {
+  id         String          @id @default(cuid())
+  purchaseId String
+  recallId   String
+  confidence MatchConfidence
+  score      Float
+  reasons    String          @default("[]")
+  status     MatchStatus     @default(UNREVIEWED)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  purchase   Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  recall     Recall          @relation(fields: [recallId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseId, recallId])
+  @@index([confidence, status])
+}
+
+model SyncState {
+  id         String   @id
+  provider   String
+  syncedAt   DateTime
+  recordCount Int
+}
