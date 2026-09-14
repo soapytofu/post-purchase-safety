@@ -4,6 +4,15 @@ import { regenerateMatches } from "@/lib/match-service";
 
 export async function syncRecallProvider(provider: RecallProvider) {
   const recalls = await provider.fetchRecalls();
+  if (!recalls.length) throw new Error(`${provider.name} returned no recall records`);
+  if (provider.managedAuthorities?.length) {
+    await prisma.recall.deleteMany({
+      where: {
+        sourceAuthority: { in: [...provider.managedAuthorities] },
+        externalId: { notIn: recalls.map((recall) => recall.externalId) },
+      },
+    });
+  }
   for (const recall of recalls) {
     const data = { ...recall, upcs: JSON.stringify(recall.upcs), lotNumbers: JSON.stringify(recall.lotNumbers), rawData: JSON.stringify(recall.rawData ?? {}), isFixture: recall.isFixture ?? false };
     await prisma.recall.upsert({

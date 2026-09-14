@@ -28,7 +28,7 @@
 
 - [x] Define provider abstraction.
 - [x] Implement a reliable fixture provider and sync action.
-- [ ] Add a live FDA provider after MVP validation.
+- [x] Add a live openFDA food-enforcement provider with validation, timeout, provenance, and offline fallback.
 
 ## Milestone 6 — Polish and verification
 

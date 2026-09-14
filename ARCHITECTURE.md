@@ -25,14 +25,16 @@ Next.js app router
        │                 │
        ▼                 ▼
  local SQLite       Fixture provider
-                    (FDA/CPSC adapters later)
+                    (openFDA live + fixture fallback)
 ```
 
 The matching engine has no UI or database dependency. Provider payloads are normalized at the boundary. Server actions orchestrate persistence and revalidation; route components remain presentation-focused.
 
 ## Recall providers
 
-`RecallProvider.fetchRecalls()` returns normalized records. The MVP uses deterministic, clearly marked fixtures because availability and shape changes in public APIs should not weaken a local demo. A future FDA/openFDA adapter can be added without changing matching or UI code. Provider sync upserts by `(sourceAuthority, externalId)` and then regenerates inferred matches.
+`RecallProvider.fetchRecalls()` returns normalized records. `OpenFdaRecallProvider` fetches up to 100 recent ongoing food enforcement reports, validates the payload, and conservatively extracts only explicitly labeled UPC/GTIN and lot values. The fixture provider remains available as an offline fallback. Provider sync replaces the provider-owned snapshot, upserts by `(sourceAuthority, externalId)`, and regenerates inferred matches.
+
+The server sends no purchase data to openFDA. The network request contains only the public recall query and an optional API key. General-news scraping is intentionally deferred: article text is secondary reporting, often lacks precise identifiers, and needs deduplication, publisher terms review, source reputation signals, and a separate “unverified safety signal” model rather than being mixed with authoritative recalls.
 
 ## Privacy boundary
 
@@ -51,4 +53,3 @@ Future entities and typed edges could add restaurant ingredient provenance, batc
 ## Production considerations
 
 A production system needs authenticated tenancy, encrypted storage, provider cursoring and retries, notice version history, observability, accessibility audits, jurisdiction-aware retention, and human-reviewed match calibration. Those are deliberately deferred until the core routing thesis is validated.
-

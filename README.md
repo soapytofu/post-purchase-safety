@@ -1,6 +1,6 @@
 # SafeKeep
 
-SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, normalizes product recall notices, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence.
+SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, ingests live FDA food-enforcement records, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence.
 
 It proves one simple idea: people should not have to manually connect a notice on a regulator website with an item sitting in their home.
 
@@ -12,7 +12,7 @@ It proves one simple idea: people should not have to manually connect a notice o
 CSV / manual entry                       Fixture recall provider
         │                                          │
         ▼                                          ▼
- Purchase normalizer                        Recall normalizer
+ Purchase normalizer                    openFDA + fixture providers
         │                                          │
         └──────────────┐      ┌────────────────────┘
                        ▼      ▼
@@ -41,9 +41,11 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). The setup command creates `prisma/dev.db`, seeds 20 purchases and 10 notices, and generates several deliberate HIGH, MEDIUM, and LOW matches.
 
+An openFDA API key is optional. Anonymous access uses FDA's lower public rate limits; set `FDA_API_KEY` in `.env` for regular use.
+
 ## Three-minute demo
 
-1. Start on Dashboard and review totals, recent purchases, last sync, and top alerts.
+1. Start on Dashboard, click **Sync live FDA**, and review the loaded-record count and source freshness.
 2. Open Safety alerts. Expand the evidence behind a HIGH match and follow the authority portal link.
 3. Change its acknowledgment status to Reviewed, Returned, Discarded, or Dismissed.
 4. Open Add / import and add the Green Valley salad kit with UPC `041234567890` and lot `RV2409A`—or import `examples/sample-purchases.csv`.
@@ -64,19 +66,19 @@ npm run build
 
 ## Privacy by design
 
-The purchase ledger stays in a local SQLite database. The MVP has no accounts, analytics, trackers, or calls that transmit purchase history to third parties. Fixture recall data is bundled with the application, and manual syncing reads only that local provider. A future architecture should favor on-device matching, tokenized identifiers, retailer-side matching, and minimal centralized consumer data.
+The purchase ledger stays in a local SQLite database. The MVP has no accounts, analytics, or trackers. Live sync sends a public recall query to openFDA but never sends product purchases, identifiers, retailers, or match results. A future architecture should favor on-device matching, tokenized identifiers, retailer-side matching, and minimal centralized consumer data.
 
 ## Demo data and limitations
 
-All included recall records are fictionalized demo fixtures inspired by the shape of FDA and CPSC notices. They are labeled in code and UI, and their links go to official recall portals rather than implying that a specific fixture is an official record. The app does not live-sync regulators, authenticate users, notify devices, reconcile duplicate imports, or model restaurant/supply-chain provenance.
+Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC notices. They remain labeled in code and UI. A dashboard action can replace the current live-provider snapshot with recent ongoing openFDA food enforcement records. openFDA is updated weekly and its own disclaimer says results are unvalidated; the app therefore links every live record back to its FDA JSON source and never treats a match as confirmation. The app does not yet ingest CPSC/USDA data, scrape general news, authenticate users, notify devices, reconcile duplicate imports, or model restaurant/supply-chain provenance.
 
 ## Roadmap
 
-1. Add a production-quality openFDA adapter with cursoring, retries, and provenance snapshots.
-2. Calibrate matching against reviewed examples and expose identifier conflict details more deeply.
-3. Add encrypted multi-user storage and opt-in notification delivery.
-4. Explore retailer/loyalty imports and GS1 Digital Link identifiers.
-5. Extend the notice model to warranty, firmware, and maintenance events.
+1. Add CPSC and USDA FSIS authoritative adapters with provider-specific status handling.
+2. Add a separately labeled news safety-signal pipeline with deduplication and publisher policy controls.
+3. Calibrate matching against reviewed examples and expose identifier conflict details more deeply.
+4. Add encrypted multi-user storage and opt-in notification delivery.
+5. Explore retailer/loyalty imports and GS1 Digital Link identifiers.
 
 ## Repository guide
 

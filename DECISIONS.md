@@ -24,3 +24,10 @@ The import parser supports quoted RFC-4180-style cells and the documented header
 
 Because fixture details are fictionalized, links go to official authority recall search portals rather than pretending a specific official notice exists.
 
+## D-007 — openFDA before general news scraping
+
+Live ingestion uses FDA's structured Food Enforcement API, which is updated weekly and provides stable provenance. Only records marked ongoing are fetched, and provider-owned snapshots are replaced on sync so stale records do not accumulate. General news belongs in a future, separately labeled safety-signal model because publisher pages are brittle, secondary, and usually lack exact identifiers.
+
+## D-008 — Conservative identifier extraction
+
+The live adapter extracts UPCs and lots only when the surrounding FDA text explicitly labels them. Unlabeled numbers, dates, package sizes, and product codes are not guessed as identifiers. This sacrifices recall coverage to reduce false matches.

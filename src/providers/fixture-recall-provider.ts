@@ -18,5 +18,6 @@ export const fixtureRecalls: NormalizedRecall[] = [
 
 export class FixtureRecallProvider implements RecallProvider {
   readonly name = "demo-fixtures";
+  readonly managedAuthorities = ["FDA", "CPSC"];
   async fetchRecalls() { return fixtureRecalls; }
 }

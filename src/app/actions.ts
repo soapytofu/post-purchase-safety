@@ -9,6 +9,7 @@ import { regenerateMatches } from "@/lib/match-service";
 import { parsePurchaseCsv } from "@/lib/csv";
 import { syncRecallProvider } from "@/lib/sync-recalls";
 import { FixtureRecallProvider } from "@/providers/fixture-recall-provider";
+import { OpenFdaRecallProvider } from "@/providers/openfda-recall-provider";
 
 const purchaseSchema = z.object({
   productName: z.string().trim().min(1), brand: z.string().trim().min(1), category: z.string().trim().min(1),
@@ -44,7 +45,16 @@ export async function updateMatchStatus(formData: FormData) {
   revalidatePath("/"); revalidatePath("/alerts");
 }
 
-export async function syncRecalls() {
-  await syncRecallProvider(new FixtureRecallProvider());
+export async function syncRecalls(formData: FormData) {
+  const source = String(formData.get("source") ?? "live");
+  const provider = source === "fixtures" ? new FixtureRecallProvider() : new OpenFdaRecallProvider();
+  let count: number;
+  try {
+    count = await syncRecallProvider(provider);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Live sync failed";
+    redirect(`/?sync=error&message=${encodeURIComponent(message)}`);
+  }
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
+  redirect(`/?sync=${source}&count=${count}`);
 }

@@ -15,7 +15,7 @@ The MVP serves one local demo consumer who buys packaged grocery products and ho
 1. **Add purchase:** enter product, brand, category, retailer, date, and optional UPC and lot.
 2. **Import purchases:** upload a CSV containing the documented columns in `examples/sample-purchases.csv`; preview validation errors and import valid rows.
 3. **Purchase ledger:** search and filter purchases and see their current recall status.
-4. **Recall ingestion:** load normalized fixture notices through a replaceable `RecallProvider` interface.
+4. **Recall ingestion:** fetch recent ongoing food enforcement records from openFDA through a replaceable `RecallProvider` interface; retain explicit demo fixtures as an offline fallback.
 5. **Recall matching:** deterministically compare every purchase and active recall.
 6. **Safety inbox:** inspect match confidence, reasons, recommended action, source, and set an acknowledgment status.
 7. **Dashboard:** see tracked purchases, active matches, high-confidence matches, recent checks, and last sync time.
@@ -61,6 +61,7 @@ Brand and product text is lowercased, Unicode-normalized, stripped of punctuatio
 ## 7. Acceptance criteria
 
 - The app starts locally and shows seeded purchases and recall fixtures.
+- A manual live sync fetches up to 100 recent ongoing FDA food enforcement records without transmitting purchase data.
 - Manual and CSV-created purchases generate matches immediately.
 - Each visible alert explains the match and links to the source field.
 - Confidence levels are visually and verbally distinct.
