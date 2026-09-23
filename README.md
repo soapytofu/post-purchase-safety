@@ -28,6 +28,8 @@ CSV / manual entry                       Fixture recall provider
 
 The domain matcher is a pure TypeScript module. Recall ingestion is behind a `RecallProvider` interface, persistence is isolated through Prisma, and Next.js server actions orchestrate imports, status changes, sync, and rematching. See [ARCHITECTURE.md](./ARCHITECTURE.md) and [SPEC.md](./SPEC.md).
 
+The proposed multi-source product direction—including food and durable-product capture, FDA/USDA/CPSC coverage, category-specific matching, notifications, remedy tracking, privacy, and pilot gates—is documented in [PRODUCT_SPEC_V2.md](./PRODUCT_SPEC_V2.md).
+
 ## Setup
 
 Requirements: Node.js 20+ and npm.
@@ -83,6 +85,7 @@ Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC n
 ## Repository guide
 
 - `SPEC.md` — product source of truth and scoring contract
+- `PRODUCT_SPEC_V2.md` — detailed proposed product and data roadmap
 - `ARCHITECTURE.md` — boundaries and future provenance design
 - `DECISIONS.md` — assumptions and tradeoffs
 - `IMPLEMENTATION_PLAN.md` — milestone status
