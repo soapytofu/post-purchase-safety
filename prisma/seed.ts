@@ -54,7 +54,8 @@ async function main() {
       }
     }
   }
-  await prisma.syncState.create({ data: { id: provider.name, provider: provider.name, syncedAt: new Date(), recordCount: recalls.length } });
+  const syncedAt = new Date();
+  await prisma.syncState.create({ data: { id: provider.name, provider: provider.name, syncedAt, lastAttemptAt: syncedAt, lastSuccessAt: syncedAt, status: "SUCCEEDED", recordCount: recalls.length } });
 }
 
 main().finally(() => prisma.$disconnect());

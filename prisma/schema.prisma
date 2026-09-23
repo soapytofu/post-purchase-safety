@@ -90,8 +90,12 @@ model RecallMatch {
 }
 
 model SyncState {
-  id         String   @id
-  provider   String
-  syncedAt   DateTime
-  recordCount Int
+  id            String    @id
+  provider      String
+  syncedAt      DateTime
+  lastAttemptAt DateTime?
+  lastSuccessAt DateTime?
+  status        String    @default("SUCCEEDED")
+  errorMessage  String?
+  recordCount   Int
 }

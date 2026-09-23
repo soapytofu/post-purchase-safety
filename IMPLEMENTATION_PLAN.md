@@ -35,3 +35,17 @@
 - [x] Add responsive navigation, empty/error states, and trust copy.
 - [x] Add integration coverage and manual QA checklist.
 - [x] Run database generation/seed, tests, lint, typecheck, and production build.
+
+## V2 Phase 0/1 — Multi-source notice foundation
+
+- [x] Add a searchable, paginated Notices catalog with source filtering.
+- [x] Add live CPSC consumer-product recall ingestion.
+- [x] Paginate openFDA through the complete configured result set.
+- [x] Replace provider records transactionally and preserve the prior snapshot on failure.
+- [x] Track provider attempts, successful freshness, failures, and record counts.
+- [x] Validate that primary-source links use trusted HTTPS authority domains.
+- [x] Keep live and demo snapshots isolated during replacement.
+- [x] Replace ambiguous “no match” UI copy with “none found in checked data.”
+- [x] Bind unauthenticated development and production servers to localhost by default.
+- [ ] Add USDA FSIS ingestion after resolving the authority endpoint's current access restrictions.
+- [ ] Introduce versioned notice and affected-product entities.

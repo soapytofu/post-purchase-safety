@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Bell, LayoutDashboard, Plus, ReceiptText, ShieldCheck } from "lucide-react";
+import { Bell, LayoutDashboard, Newspaper, Plus, ReceiptText, ShieldCheck } from "lucide-react";
 import { Logo } from "./logo";
 
 const links = [
   ["/", "Dashboard", LayoutDashboard],
   ["/purchases", "Purchases", ReceiptText],
   ["/alerts", "Safety alerts", Bell],
+  ["/notices", "Notices", Newspaper],
   ["/add", "Add / import", Plus],
 ] as const;
 

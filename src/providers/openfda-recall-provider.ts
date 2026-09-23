@@ -21,7 +21,10 @@ const openFdaRecallSchema = z.object({
   openfda: z.object({ brand_name: z.array(z.string()).optional(), upc: z.array(z.string()).optional() }).passthrough().optional(),
 }).passthrough();
 
-const responseSchema = z.object({ results: z.array(openFdaRecallSchema) });
+const responseSchema = z.object({
+  meta: z.object({ results: z.object({ total: z.number().int().nonnegative(), skip: z.number().int().nonnegative(), limit: z.number().int().positive() }) }).optional(),
+  results: z.array(openFdaRecallSchema),
+});
 export type OpenFdaRecall = z.infer<typeof openFdaRecallSchema>;
 
 function parseDate(value?: string) {
@@ -76,15 +79,32 @@ export function normalizeOpenFdaRecall(record: OpenFdaRecall): NormalizedRecall 
 export class OpenFdaRecallProvider implements RecallProvider {
   readonly name = "openfda-food-enforcement";
   readonly managedAuthorities = ["FDA / openFDA"];
-  constructor(private readonly limit = 100, private readonly apiKey = process.env.FDA_API_KEY) {}
+  constructor(private readonly pageSize = 1000, private readonly apiKey = process.env.FDA_API_KEY) {}
 
   async fetchRecalls(): Promise<NormalizedRecall[]> {
-    const params = new URLSearchParams({ search: 'status:"Ongoing"', sort: "report_date:desc", limit: String(Math.min(this.limit, 1000)) });
-    if (this.apiKey) params.set("api_key", this.apiKey);
-    const response = await fetch(`${OPENFDA_ENDPOINT}?${params}`, { cache: "no-store", signal: AbortSignal.timeout(15_000), headers: { Accept: "application/json", "User-Agent": "SafeKeep-MVP/0.2" } });
-    if (!response.ok) throw new Error(`openFDA returned ${response.status}`);
-    const parsed = responseSchema.safeParse(await response.json());
-    if (!parsed.success) throw new Error("openFDA returned an unexpected response shape");
-    return parsed.data.results.map(normalizeOpenFdaRecall);
+    const records = new Map<string, NormalizedRecall>();
+    const limit = Math.max(1, Math.min(this.pageSize, 1000));
+    let skip = 0;
+    let total: number | null = null;
+
+    do {
+      if (skip > 25_000) throw new Error("openFDA result set exceeds the supported complete-pagination window");
+      const params = new URLSearchParams({ search: 'status:"Ongoing"', sort: "report_date:desc", limit: String(limit), skip: String(skip) });
+      if (this.apiKey) params.set("api_key", this.apiKey);
+      const response = await fetch(`${OPENFDA_ENDPOINT}?${params}`, { cache: "no-store", signal: AbortSignal.timeout(20_000), headers: { Accept: "application/json", "User-Agent": "SafeKeep/0.3 (consumer safety monitor)" } });
+      if (!response.ok) throw new Error(`openFDA returned ${response.status}`);
+      const parsed = responseSchema.safeParse(await response.json());
+      if (!parsed.success) throw new Error("openFDA returned an unexpected response shape");
+      total = parsed.data.meta?.results.total ?? parsed.data.results.length;
+      if (!parsed.data.results.length && skip < total) throw new Error("openFDA pagination ended before all records were received");
+      for (const record of parsed.data.results) {
+        const normalized = normalizeOpenFdaRecall(record);
+        records.set(normalized.externalId, normalized);
+      }
+      skip += parsed.data.results.length;
+    } while (skip < total);
+
+    if (records.size < (total ?? 0)) throw new Error("openFDA changed during pagination; the previous snapshot was preserved");
+    return [...records.values()];
   }
 }

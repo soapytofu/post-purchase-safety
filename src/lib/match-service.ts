@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { matchPurchaseToRecall } from "@/domain/matching/match";
 import type { NormalizedRecall } from "@/domain/types";
@@ -6,15 +7,17 @@ export function recallRecordToDomain(recall: { externalId: string; sourceAuthori
   return { ...recall, upcs: JSON.parse(recall.upcs), lotNumbers: JSON.parse(recall.lotNumbers), rawData: JSON.parse(recall.rawData) };
 }
 
-export async function regenerateMatches() {
-  const [purchases, recalls] = await Promise.all([prisma.purchase.findMany(), prisma.recall.findMany()]);
+type MatchClient = Pick<Prisma.TransactionClient, "purchase" | "recall" | "recallMatch">;
+
+export async function regenerateMatches(client: MatchClient = prisma) {
+  const [purchases, recalls] = await Promise.all([client.purchase.findMany(), client.recall.findMany()]);
   for (const purchase of purchases) {
     for (const recallRecord of recalls) {
       const result = matchPurchaseToRecall(purchase, recallRecordToDomain(recallRecord));
       if (result.confidence === "NONE") {
-        await prisma.recallMatch.deleteMany({ where: { purchaseId: purchase.id, recallId: recallRecord.id } });
+        await client.recallMatch.deleteMany({ where: { purchaseId: purchase.id, recallId: recallRecord.id } });
       } else {
-        await prisma.recallMatch.upsert({
+        await client.recallMatch.upsert({
           where: { purchaseId_recallId: { purchaseId: purchase.id, recallId: recallRecord.id } },
           create: { purchaseId: purchase.id, recallId: recallRecord.id, confidence: result.confidence, score: result.score, reasons: JSON.stringify(result.reasons) },
           update: { confidence: result.confidence, score: result.score, reasons: JSON.stringify(result.reasons) },

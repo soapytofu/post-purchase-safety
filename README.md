@@ -1,6 +1,6 @@
 # SafeKeep
 
-SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, ingests live FDA food-enforcement records, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence.
+SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, ingests live FDA food-enforcement and CPSC consumer-product records, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence.
 
 It proves one simple idea: people should not have to manually connect a notice on a regulator website with an item sitting in their home.
 
@@ -23,12 +23,12 @@ CSV / manual entry                       Fixture recall provider
               SQLite ← Prisma → Next.js
                          │
                          ▼
-            dashboard / ledger / safety inbox
+       dashboard / ledger / safety inbox / notice catalog
 ```
 
 The domain matcher is a pure TypeScript module. Recall ingestion is behind a `RecallProvider` interface, persistence is isolated through Prisma, and Next.js server actions orchestrate imports, status changes, sync, and rematching. See [ARCHITECTURE.md](./ARCHITECTURE.md) and [SPEC.md](./SPEC.md).
 
-The proposed multi-source product direction—including food and durable-product capture, FDA/USDA/CPSC coverage, category-specific matching, notifications, remedy tracking, privacy, and pilot gates—is documented in [PRODUCT_SPEC_V2.md](./PRODUCT_SPEC_V2.md).
+The proposed multi-source product direction—including food and durable-product capture, FDA/USDA/CPSC coverage, category-specific matching, notifications, remedy tracking, privacy, and pilot gates—is documented in [PRODUCT_SPEC_V2.md](./PRODUCT_SPEC_V2.md). The first v2 slice is implemented: a searchable notice catalog, live CPSC ingestion, fully paginated openFDA ingestion, provider health, trusted source links, and atomic live/demo snapshot replacement.
 
 ## Setup
 

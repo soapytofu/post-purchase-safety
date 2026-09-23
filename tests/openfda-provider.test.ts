@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { extractLots, extractUpcs, normalizeOpenFdaRecall, type OpenFdaRecall } from "@/providers/openfda-recall-provider";
+import { extractLots, extractUpcs, normalizeOpenFdaRecall, OpenFdaRecallProvider, type OpenFdaRecall } from "@/providers/openfda-recall-provider";
 
 const record: OpenFdaRecall = {
   recall_number: "H-9999-2026",
@@ -27,5 +27,23 @@ describe("openFDA provider normalization", () => {
     assert.equal(normalized.severity, "Class II");
     assert.equal(normalized.recallDate.toISOString(), "2026-09-10T12:00:00.000Z");
     assert.match(normalized.sourceUrl, /^https:\/\/api\.fda\.gov\/food\/enforcement\.json/);
+  });
+  it("paginates until the complete configured result set is loaded", async () => {
+    const originalFetch = globalThis.fetch;
+    const skips: number[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = new URL(String(input));
+      const skip = Number(url.searchParams.get("skip"));
+      skips.push(skip);
+      const result = { ...record, recall_number: `H-${skip + 1}` };
+      return new Response(JSON.stringify({ meta: { results: { total: 2, skip, limit: 1 } }, results: [result] }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      const results = await new OpenFdaRecallProvider(1).fetchRecalls();
+      assert.deepEqual(skips, [0, 1]);
+      assert.deepEqual(results.map((item) => item.externalId), ["H-1", "H-2"]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
