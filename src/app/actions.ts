@@ -11,6 +11,7 @@ import { syncRecallProvider } from "@/lib/sync-recalls";
 import { FixtureRecallProvider } from "@/providers/fixture-recall-provider";
 import { OpenFdaRecallProvider } from "@/providers/openfda-recall-provider";
 import { CpscRecallProvider } from "@/providers/cpsc-recall-provider";
+import { FsisRecallProvider } from "@/providers/fsis-recall-provider";
 
 const purchaseSchema = z.object({
   productName: z.string().trim().min(1), brand: z.string().trim().min(1), category: z.string().trim().min(1),
@@ -48,7 +49,7 @@ export async function updateMatchStatus(formData: FormData) {
 
 export async function syncRecalls(formData: FormData) {
   const source = String(formData.get("source") ?? "live");
-  const provider = source === "fixtures" ? new FixtureRecallProvider() : source === "cpsc" ? new CpscRecallProvider() : new OpenFdaRecallProvider();
+  const provider = source === "fixtures" ? new FixtureRecallProvider() : source === "cpsc" ? new CpscRecallProvider() : source === "fsis" ? new FsisRecallProvider() : new OpenFdaRecallProvider();
   let count: number;
   try {
     count = await syncRecallProvider(provider);

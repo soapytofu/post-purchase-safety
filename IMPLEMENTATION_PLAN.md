@@ -47,5 +47,7 @@
 - [x] Keep live and demo snapshots isolated during replacement.
 - [x] Replace ambiguous “no match” UI copy with “none found in checked data.”
 - [x] Bind unauthenticated development and production servers to localhost by default.
-- [ ] Add USDA FSIS ingestion after resolving the authority endpoint's current access restrictions.
+- [x] Add API-first USDA FSIS ingestion with direct RSS and official CDC relay fallbacks.
+- [x] Mark fallback coverage partial and preserve any prior full USDA snapshot.
+- [ ] Re-test the full FSIS API from the production host and send the prepared access report if it remains blocked.
 - [ ] Introduce versioned notice and affected-product entities.

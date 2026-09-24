@@ -6,7 +6,9 @@ import { assertTrustedSourceUrl } from "@/lib/source-url";
 export async function syncRecallProvider(provider: RecallProvider) {
   const attemptedAt = new Date();
   try {
-    const recalls = await provider.fetchRecalls();
+    const fetched = await provider.fetchRecalls();
+    const result = Array.isArray(fetched) ? { records: fetched, status: "SUCCEEDED" as const, replaceSnapshot: true } : fetched;
+    const recalls = result.records;
     if (!recalls.length) throw new Error(`${provider.name} returned no recall records`);
     for (const recall of recalls) assertTrustedSourceUrl(recall.sourceUrl, recall.sourceAuthority);
     const snapshotIsFixture = recalls.every((recall) => recall.isFixture === true);
@@ -15,7 +17,7 @@ export async function syncRecallProvider(provider: RecallProvider) {
     }
 
     await prisma.$transaction(async (tx) => {
-      if (provider.managedAuthorities?.length) {
+      if (result.replaceSnapshot && provider.managedAuthorities?.length) {
         await tx.recall.deleteMany({
           where: {
             sourceAuthority: { in: [...provider.managedAuthorities] },
@@ -35,8 +37,8 @@ export async function syncRecallProvider(provider: RecallProvider) {
       await regenerateMatches(tx);
       await tx.syncState.upsert({
         where: { id: provider.name },
-        create: { id: provider.name, provider: provider.name, syncedAt: attemptedAt, lastAttemptAt: attemptedAt, lastSuccessAt: attemptedAt, status: "SUCCEEDED", recordCount: recalls.length },
-        update: { syncedAt: attemptedAt, lastAttemptAt: attemptedAt, lastSuccessAt: attemptedAt, status: "SUCCEEDED", errorMessage: null, recordCount: recalls.length },
+        create: { id: provider.name, provider: provider.name, syncedAt: attemptedAt, lastAttemptAt: attemptedAt, lastSuccessAt: attemptedAt, status: result.status, errorMessage: result.message, recordCount: recalls.length },
+        update: { syncedAt: attemptedAt, lastAttemptAt: attemptedAt, lastSuccessAt: attemptedAt, status: result.status, errorMessage: result.message ?? null, recordCount: recalls.length },
       });
     }, { maxWait: 10_000, timeout: 60_000 });
     return recalls.length;

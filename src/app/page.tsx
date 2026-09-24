@@ -18,6 +18,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <PageHeader eyebrow="Local safety network" title="Good morning. Your shelf, checked." description="SafeKeep connects what you bought with safety notices that may matter—without sending your purchase history anywhere." action={<Link className="button button-primary" href="/add"><Plus size={16} />Add purchase</Link>} />
     {params.sync === "live" && <div className="flash">Live FDA sync complete: {params.count} ongoing food enforcement records loaded and checked.</div>}
     {params.sync === "cpsc" && <div className="flash">Live CPSC sync complete: {params.count} consumer-product recalls loaded and checked.</div>}
+    {params.sync === "fsis" && <div className="flash">USDA FSIS sync complete: {params.count} recent meat, poultry, and processed-egg notices loaded. Check source coverage for whether the full API or fallback feed was used.</div>}
     {params.sync === "fixtures" && <div className="flash">Demo fixtures reloaded and checked.</div>}
     {params.sync === "error" && <div className="inline-error">Live sync could not finish: {params.message}. Your existing local notices were not removed.</div>}
     <section className="trust-strip"><CheckCircle2 size={18} /><span><strong>Live and demo sources stay distinct.</strong> Matches are inferences, not safety determinations. Always verify the issuing authority.</span><SyncButton /></section>
