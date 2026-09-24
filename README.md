@@ -1,6 +1,6 @@
 # SafeKeep
 
-SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, ingests live FDA, USDA FSIS, and CPSC safety records, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence.
+SafeKeep is a polished MVP for a post-purchase safety network. It keeps a private local ledger of products you bought, ingests live FDA, USDA FSIS, and CPSC safety records, and surfaces explainable potential matches with HIGH, MEDIUM, or LOW confidence. Purchases can be captured manually, through CSV, or through a receipt photo, camera scan, or PDF upload with on-device OCR and an editable review step.
 
 It proves one simple idea: people should not have to manually connect a notice on a regulator website with an item sitting in their home.
 

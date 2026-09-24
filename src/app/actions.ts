@@ -19,6 +19,16 @@ const purchaseSchema = z.object({
   upc: z.string().trim().optional(), lotNumber: z.string().trim().optional(),
 });
 
+const receiptSchema = z.object({
+  merchant: z.string().trim().min(1).max(120),
+  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => !Number.isNaN(Date.parse(`${value}T12:00:00.000Z`))),
+  items: z.array(z.object({
+    productName: z.string().trim().min(1).max(200),
+    brand: z.string().trim().min(1).max(120),
+    category: z.string().trim().min(1).max(120),
+  })).min(1).max(50),
+});
+
 export async function addPurchase(formData: FormData) {
   const parsed = purchaseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/add?error=Please%20complete%20all%20required%20fields");
@@ -37,6 +47,23 @@ export async function importPurchases(formData: FormData) {
   await regenerateMatches();
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
   redirect(`/purchases?imported=${result.rows.length}`);
+}
+
+export async function importReceiptPurchases(formData: FormData) {
+  const value = formData.get("receiptPayload");
+  let payload: unknown;
+  try { payload = JSON.parse(typeof value === "string" ? value : ""); } catch { redirect("/add?error=The%20receipt%20details%20could%20not%20be%20read"); }
+  const parsed = receiptSchema.safeParse(payload);
+  if (!parsed.success) redirect("/add?error=Review%20the%20merchant%2C%20date%2C%20and%20selected%20items");
+  await prisma.purchase.createMany({ data: parsed.data.items.map((item) => ({
+    ...item,
+    retailer: parsed.data.merchant,
+    purchaseDate: new Date(`${parsed.data.purchaseDate}T12:00:00.000Z`),
+    source: PurchaseSource.RECEIPT,
+  })) });
+  await regenerateMatches();
+  revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
+  redirect(`/purchases?receipt=${parsed.data.items.length}`);
 }
 
 export async function updateMatchStatus(formData: FormData) {

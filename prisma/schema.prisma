@@ -10,6 +10,7 @@ datasource db {
 enum PurchaseSource {
   MANUAL
   CSV
+  RECEIPT
   DEMO
 }
 
