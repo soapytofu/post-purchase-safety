@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, LayoutDashboard, Newspaper, Plus, ReceiptText, ShieldCheck } from "lucide-react";
+import { Bell, LayoutDashboard, Newspaper, Plus, ReceiptText, Settings, ShieldCheck } from "lucide-react";
 import { Logo } from "./logo";
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   ["/alerts", "Safety alerts", Bell],
   ["/notices", "Notices", Newspaper],
   ["/add", "Add / import", Plus],
+  ["/settings", "Data & settings", Settings],
 ] as const;
 
 export function Nav() {

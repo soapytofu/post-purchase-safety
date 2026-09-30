@@ -51,3 +51,16 @@
 - [x] Mark fallback coverage partial and preserve any prior full USDA snapshot.
 - [ ] Re-test the full FSIS API from the production host and send the prepared access report if it remains blocked.
 - [ ] Introduce versioned notice and affected-product entities.
+
+## Pilot foundation
+
+- [x] Add consumer-facing notice categories across food and household products.
+- [x] Add a secret-protected endpoint for unattended FDA, USDA, and CPSC refreshes.
+- [x] Add machine-readable provider health reporting.
+- [x] Add purchase-history export and deletion controls.
+- [x] Document the private-pilot and public-launch boundaries.
+- [ ] Add authenticated users and household tenancy.
+- [ ] Move production storage to managed PostgreSQL with encrypted backups.
+- [ ] Add opt-in email and push notifications with delivery/audit history.
+- [ ] Add notice versioning and materially-changed alert detection.
+- [ ] Run a 25–50 household pilot and calibrate precision before broad acquisition.

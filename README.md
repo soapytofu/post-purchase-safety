@@ -30,6 +30,8 @@ The domain matcher is a pure TypeScript module. Recall ingestion is behind a `Re
 
 The proposed multi-source product direction—including food and durable-product capture, FDA/USDA/CPSC coverage, category-specific matching, notifications, remedy tracking, privacy, and pilot gates—is documented in [PRODUCT_SPEC_V2.md](./PRODUCT_SPEC_V2.md). The first v2 slice is implemented: a searchable notice catalog, live FDA/USDA/CPSC ingestion, fully paginated openFDA ingestion, provider health, trusted source links, and atomic live/demo snapshot replacement. USDA ingestion prefers the full FSIS JSON API, then falls back to the direct FSIS RSS feed and the official CDC government relay; fallback results are visibly marked partial and never replace a fuller snapshot.
 
+The app now includes a pilot foundation: consumer-facing recall categories, receipt capture and on-device OCR, portable data export/deletion, a health endpoint, and a secret-protected unattended sync endpoint. See [STARTUP_READINESS.md](./STARTUP_READINESS.md) for the private-pilot sequence and explicit gates before a hosted multi-user launch.
+
 ## Setup
 
 Requirements: Node.js 20+ and npm.
@@ -44,6 +46,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). The setup command creates `prisma/dev.db`, seeds 20 purchases and 10 notices, and generates several deliberate HIGH, MEDIUM, and LOW matches.
 
 An openFDA API key is optional. Anonymous access uses FDA's lower public rate limits; set `FDA_API_KEY` in `.env` for regular use.
+
+For an operator-controlled daily refresh, set a random `SYNC_SECRET` of at least 24 characters and send `POST /api/sync` with an `Authorization: Bearer <secret>` header. `/api/health` exposes source freshness without exposing purchase data. The current SQLite build should remain private and single-household; move to authenticated tenancy and managed PostgreSQL before public hosting. A fail-closed proxy allows the notice catalog and operational endpoints on non-loopback hosts but blocks household pages and data export until that authentication boundary exists. Private routes are available only from a loopback host in development; production builds intentionally require the future authenticated tenancy layer.
 
 ## Three-minute demo
 
@@ -72,14 +76,14 @@ The purchase ledger stays in a local SQLite database. The MVP has no accounts, a
 
 ## Demo data and limitations
 
-Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC notices. They remain labeled in code and UI. A dashboard action can replace the current live-provider snapshot with recent ongoing openFDA food enforcement records. openFDA is updated weekly and its own disclaimer says results are unvalidated; the app therefore links every live record back to its FDA JSON source and never treats a match as confirmation. The app does not yet ingest CPSC/USDA data, scrape general news, authenticate users, notify devices, reconcile duplicate imports, or model restaurant/supply-chain provenance.
+Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC notices. They remain labeled in code and UI. Live FDA, USDA FSIS, and CPSC records link back to their primary source, and the app never treats a match as confirmation. The app does not yet scrape general news, authenticate users, notify devices, reconcile duplicate imports, or model restaurant/supply-chain provenance.
 
 ## Roadmap
 
-1. Add CPSC and USDA FSIS authoritative adapters with provider-specific status handling.
-2. Add a separately labeled news safety-signal pipeline with deduplication and publisher policy controls.
+1. Add authenticated household tenancy and managed PostgreSQL.
+2. Add opt-in notification delivery and notice versioning.
 3. Calibrate matching against reviewed examples and expose identifier conflict details more deeply.
-4. Add encrypted multi-user storage and opt-in notification delivery.
+4. Add a separately labeled news safety-signal pipeline with deduplication and publisher policy controls.
 5. Explore retailer/loyalty imports and GS1 Digital Link identifiers.
 
 ## Repository guide
@@ -89,6 +93,7 @@ Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC n
 - `ARCHITECTURE.md` — boundaries and future provenance design
 - `DECISIONS.md` — assumptions and tradeoffs
 - `IMPLEMENTATION_PLAN.md` — milestone status
+- `STARTUP_READINESS.md` — private-pilot plan, metrics, business-model hypotheses, and public-launch gates
 - `QA.md` — manual verification checklist
 - `src/domain` — pure normalization and matching
 - `src/providers` — replaceable recall sources

@@ -66,6 +66,12 @@ export async function importReceiptPurchases(formData: FormData) {
   redirect(`/purchases?receipt=${parsed.data.items.length}`);
 }
 
+export async function deleteAllPurchases() {
+  await prisma.purchase.deleteMany();
+  revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts"); revalidatePath("/settings");
+  redirect("/settings?cleared=1");
+}
+
 export async function updateMatchStatus(formData: FormData) {
   const id = String(formData.get("id"));
   const status = String(formData.get("status"));
