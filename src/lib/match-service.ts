@@ -9,8 +9,8 @@ export function recallRecordToDomain(recall: { externalId: string; sourceAuthori
 
 type MatchClient = Pick<Prisma.TransactionClient, "purchase" | "recall" | "recallMatch">;
 
-export async function regenerateMatches(client: MatchClient = prisma) {
-  const [purchases, recalls] = await Promise.all([client.purchase.findMany(), client.recall.findMany()]);
+export async function regenerateMatches(client: MatchClient = prisma, purchaseWhere?: Prisma.PurchaseWhereInput) {
+  const [purchases, recalls] = await Promise.all([client.purchase.findMany({ where: purchaseWhere }), client.recall.findMany()]);
   for (const purchase of purchases) {
     for (const recallRecord of recalls) {
       const result = matchPurchaseToRecall(purchase, recallRecordToDomain(recallRecord));

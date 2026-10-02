@@ -4,7 +4,7 @@
 
 Pursue SafeKeep as a focused private beta, not yet as a broad consumer launch. The strongest wedge is “a safety inbox for products your household actually owns,” beginning with households that have young children, caregivers, or unusually high recall sensitivity. The durable advantage is the owned-product identity graph and verified remedy history—not a generic recall-news feed.
 
-The current application is suitable for founder use and a single-household pilot. A hosted multi-user product must not launch until identity, tenancy, durable storage, backups, and notification consent are implemented.
+The current application remains suitable for local founder use. Verified-account integration, household isolation, PostgreSQL migrations and CI checks are now implemented; hosted services still need connecting and staging validation. See [MULTI_USER_LAUNCH.md](./MULTI_USER_LAUNCH.md). A public product must not launch until real identity flows, durable storage, backups, notification consent and the security review pass their acceptance gates.
 
 ## What is now pilot-ready
 

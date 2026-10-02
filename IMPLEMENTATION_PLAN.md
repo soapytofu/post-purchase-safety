@@ -59,8 +59,13 @@
 - [x] Add machine-readable provider health reporting.
 - [x] Add purchase-history export and deletion controls.
 - [x] Document the private-pilot and public-launch boundaries.
-- [ ] Add authenticated users and household tenancy.
+- [x] Implement verified account integration and household-scoped private reads/writes.
+- [x] Prepare PostgreSQL migrations, API-role isolation, and CI quality gates.
+- [ ] Connect Supabase staging and test real email sign-in and PostgreSQL deployment.
+- [ ] Add explicit household invitations and member roles.
 - [ ] Move production storage to managed PostgreSQL with encrypted backups.
 - [ ] Add opt-in email and push notifications with delivery/audit history.
 - [ ] Add notice versioning and materially-changed alert detection.
 - [ ] Run a 25–50 household pilot and calibrate precision before broad acquisition.
+
+See `MULTI_USER_LAUNCH.md` for connection steps and staging acceptance tests. The existing local ledger remains isolated and intact.

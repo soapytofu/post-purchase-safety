@@ -29,6 +29,9 @@ const purchases = [
 ] as const;
 
 async function main() {
+  if (process.env.AUTH_MODE === "supabase" || process.env.NODE_ENV === "production" || !process.env.DATABASE_URL?.startsWith("file:")) {
+    throw new Error("Demo seeding is disabled for hosted accounts and production databases.");
+  }
   await prisma.recallMatch.deleteMany();
   await prisma.purchase.deleteMany();
   await prisma.recall.deleteMany();

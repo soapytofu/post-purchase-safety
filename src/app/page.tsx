@@ -4,18 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { SyncButton } from "@/components/sync-button";
+import { requireHousehold } from "@/lib/auth";
+import { purchaseScope, matchScope } from "@/lib/household-data";
 
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
+  const scope = await requireHousehold();
   const [purchaseCount, alertCount, highCount, recent, sync, matches] = await Promise.all([
-    prisma.purchase.count(), prisma.recallMatch.count({ where: { status: { not: "DISMISSED" } } }), prisma.recallMatch.count({ where: { confidence: "HIGH", status: { not: "DISMISSED" } } }),
-    prisma.purchase.findMany({ take: 4, orderBy: { createdAt: "desc" }, include: { matches: { select: { confidence: true } } } }), prisma.syncState.findFirst({ orderBy: { syncedAt: "desc" } }),
-    prisma.recallMatch.findMany({ take: 3, where: { status: "UNREVIEWED" }, orderBy: [{ confidence: "asc" }, { createdAt: "desc" }], include: { purchase: true, recall: true } }),
+    prisma.purchase.count({ where: purchaseScope(scope) }), prisma.recallMatch.count({ where: { ...matchScope(scope), status: { not: "DISMISSED" } } }), prisma.recallMatch.count({ where: { ...matchScope(scope), confidence: "HIGH", status: { not: "DISMISSED" } } }),
+    prisma.purchase.findMany({ where: purchaseScope(scope), take: 4, orderBy: { createdAt: "desc" }, include: { matches: { select: { confidence: true } } } }), prisma.syncState.findFirst({ orderBy: { syncedAt: "desc" } }),
+    prisma.recallMatch.findMany({ take: 3, where: { ...matchScope(scope), status: "UNREVIEWED" }, orderBy: [{ confidence: "asc" }, { createdAt: "desc" }], include: { purchase: true, recall: true } }),
   ]);
   return <div className="page">
-    <PageHeader eyebrow="Local safety network" title="Good morning. Your shelf, checked." description="SafeKeep connects what you bought with safety notices that may matter—without sending your purchase history anywhere." action={<Link className="button button-primary" href="/add"><Plus size={16} />Add purchase</Link>} />
+    <PageHeader eyebrow={scope.local ? "Local safety network" : "Your household safety network"} title="Your shelf, checked." description={scope.local ? "SafeKeep checks your locally stored purchase history against safety notices." : "Your private household ledger, checked against public safety notices. Receipt images stay in your browser; confirmed items are stored in your account."} action={<Link className="button button-primary" href="/add"><Plus size={16} />Add purchase</Link>} />
     {params.sync === "live" && <div className="flash">Live FDA sync complete: {params.count} ongoing food enforcement records loaded and checked.</div>}
     {params.sync === "cpsc" && <div className="flash">Live CPSC sync complete: {params.count} consumer-product recalls loaded and checked.</div>}
     {params.sync === "fsis" && <div className="flash">USDA FSIS sync complete: {params.count} recent meat, poultry, and processed-egg notices loaded. Check source coverage for whether the full API or fallback feed was used.</div>}

@@ -5,12 +5,16 @@ import { PageHeader } from "@/components/page-header";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { updateMatchStatus } from "@/app/actions";
 import type { Confidence } from "@/domain/types";
+import { requireHousehold } from "@/lib/auth";
+import { matchScope } from "@/lib/household-data";
 
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
 
 export default async function Alerts({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const params = await searchParams; const confidence = params.confidence as Confidence | undefined;
-  const matches = await prisma.recallMatch.findMany({ where: confidence && confidence !== "NONE" ? { confidence } : {}, include: { purchase: true, recall: true }, orderBy: [{ status: "asc" }, { confidence: "asc" }, { createdAt: "desc" }] });
+  const params = await searchParams;
+  const confidence = ["HIGH", "MEDIUM", "LOW"].includes(params.confidence ?? "") ? params.confidence as Confidence : undefined;
+  const scope = await requireHousehold();
+  const matches = await prisma.recallMatch.findMany({ where: { ...matchScope(scope), ...(confidence ? { confidence } : {}) }, include: { purchase: true, recall: true }, orderBy: [{ status: "asc" }, { confidence: "asc" }, { createdAt: "desc" }] });
   return <div className="page"><PageHeader eyebrow="Safety inbox" title="Potential recall matches" description="Each card separates authoritative notice details from SafeKeep’s inferred match. Check the source before acting." />
     <div className="filter-pills">{["ALL", "HIGH", "MEDIUM", "LOW"].map((item) => <a className={(!confidence && item === "ALL") || confidence === item ? "active" : ""} href={item === "ALL" ? "/alerts" : `/alerts?confidence=${item}`} key={item}>{item === "ALL" ? "All matches" : item}</a>)}</div>
     <div className="alerts-stack">{matches.map((match) => { const reasons = JSON.parse(match.reasons) as string[]; return <article className={`alert-card alert-${match.confidence.toLowerCase()}`} id={match.id} key={match.id}>

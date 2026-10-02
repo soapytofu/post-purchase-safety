@@ -12,6 +12,8 @@ import { FixtureRecallProvider } from "@/providers/fixture-recall-provider";
 import { OpenFdaRecallProvider } from "@/providers/openfda-recall-provider";
 import { CpscRecallProvider } from "@/providers/cpsc-recall-provider";
 import { FsisRecallProvider } from "@/providers/fsis-recall-provider";
+import { requireHousehold, requireLocalOperator } from "@/lib/auth";
+import { purchaseScope, deleteHouseholdPurchases, setHouseholdMatchStatus } from "@/lib/household-data";
 
 const purchaseSchema = z.object({
   productName: z.string().trim().min(1), brand: z.string().trim().min(1), category: z.string().trim().min(1),
@@ -30,26 +32,31 @@ const receiptSchema = z.object({
 });
 
 export async function addPurchase(formData: FormData) {
+  const scope = await requireHousehold();
   const parsed = purchaseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/add?error=Please%20complete%20all%20required%20fields");
-  await prisma.purchase.create({ data: { ...parsed.data, purchaseDate: new Date(`${parsed.data.purchaseDate}T12:00:00.000Z`), upc: parsed.data.upc || null, lotNumber: parsed.data.lotNumber || null, source: PurchaseSource.MANUAL } });
-  await regenerateMatches();
+  await prisma.purchase.create({ data: { ...parsed.data, householdId: scope.householdId, purchaseDate: new Date(`${parsed.data.purchaseDate}T12:00:00.000Z`), upc: parsed.data.upc || null, lotNumber: parsed.data.lotNumber || null, source: PurchaseSource.MANUAL } });
+  await regenerateMatches(prisma, purchaseScope(scope));
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
   redirect("/purchases?added=1");
 }
 
 export async function importPurchases(formData: FormData) {
+  const scope = await requireHousehold();
   const file = formData.get("file");
   if (!(file instanceof File) || !file.size) redirect("/add?error=Choose%20a%20CSV%20file");
+  if (file.size > 1_000_000) redirect("/add?error=Choose%20a%20CSV%20smaller%20than%201%20MB");
   const result = parsePurchaseCsv(await file.text());
   if (result.errors.length) redirect(`/add?error=${encodeURIComponent(result.errors[0])}`);
-  await prisma.purchase.createMany({ data: result.rows.map((row) => ({ productName: row.product_name, brand: row.brand, category: row.category, retailer: row.retailer, purchaseDate: new Date(`${row.purchase_date}T12:00:00.000Z`), upc: row.upc || null, lotNumber: row.lot_number || null, source: PurchaseSource.CSV })) });
-  await regenerateMatches();
+  if (result.rows.length > 500) redirect("/add?error=Import%20up%20to%20500%20items%20per%20file");
+  await prisma.purchase.createMany({ data: result.rows.map((row) => ({ householdId: scope.householdId, productName: row.product_name, brand: row.brand, category: row.category, retailer: row.retailer, purchaseDate: new Date(`${row.purchase_date}T12:00:00.000Z`), upc: row.upc || null, lotNumber: row.lot_number || null, source: PurchaseSource.CSV })) });
+  await regenerateMatches(prisma, purchaseScope(scope));
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
   redirect(`/purchases?imported=${result.rows.length}`);
 }
 
 export async function importReceiptPurchases(formData: FormData) {
+  const scope = await requireHousehold();
   const value = formData.get("receiptPayload");
   let payload: unknown;
   try { payload = JSON.parse(typeof value === "string" ? value : ""); } catch { redirect("/add?error=The%20receipt%20details%20could%20not%20be%20read"); }
@@ -57,30 +64,35 @@ export async function importReceiptPurchases(formData: FormData) {
   if (!parsed.success) redirect("/add?error=Review%20the%20merchant%2C%20date%2C%20and%20selected%20items");
   await prisma.purchase.createMany({ data: parsed.data.items.map((item) => ({
     ...item,
+    householdId: scope.householdId,
     retailer: parsed.data.merchant,
     purchaseDate: new Date(`${parsed.data.purchaseDate}T12:00:00.000Z`),
     source: PurchaseSource.RECEIPT,
   })) });
-  await regenerateMatches();
+  await regenerateMatches(prisma, purchaseScope(scope));
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts");
   redirect(`/purchases?receipt=${parsed.data.items.length}`);
 }
 
 export async function deleteAllPurchases() {
-  await prisma.purchase.deleteMany();
+  const scope = await requireHousehold();
+  if (scope.role !== "OWNER") throw new Error("Only a household owner can delete purchase history.");
+  await deleteHouseholdPurchases(prisma, scope);
   revalidatePath("/"); revalidatePath("/purchases"); revalidatePath("/alerts"); revalidatePath("/settings");
   redirect("/settings?cleared=1");
 }
 
 export async function updateMatchStatus(formData: FormData) {
+  const scope = await requireHousehold();
   const id = String(formData.get("id"));
   const status = String(formData.get("status"));
   if (!Object.values(MatchStatus).includes(status as MatchStatus)) return;
-  await prisma.recallMatch.update({ where: { id }, data: { status: status as MatchStatus } });
+  await setHouseholdMatchStatus(prisma, scope, id, status as MatchStatus);
   revalidatePath("/"); revalidatePath("/alerts");
 }
 
 export async function syncRecalls(formData: FormData) {
+  await requireLocalOperator();
   const source = String(formData.get("source") ?? "live");
   const provider = source === "fixtures" ? new FixtureRecallProvider() : source === "cpsc" ? new CpscRecallProvider() : source === "fsis" ? new FsisRecallProvider() : new OpenFdaRecallProvider();
   let count: number;

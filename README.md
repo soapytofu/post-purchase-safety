@@ -30,11 +30,11 @@ The domain matcher is a pure TypeScript module. Recall ingestion is behind a `Re
 
 The proposed multi-source product direction—including food and durable-product capture, FDA/USDA/CPSC coverage, category-specific matching, notifications, remedy tracking, privacy, and pilot gates—is documented in [PRODUCT_SPEC_V2.md](./PRODUCT_SPEC_V2.md). The first v2 slice is implemented: a searchable notice catalog, live FDA/USDA/CPSC ingestion, fully paginated openFDA ingestion, provider health, trusted source links, and atomic live/demo snapshot replacement. USDA ingestion prefers the full FSIS JSON API, then falls back to the direct FSIS RSS feed and the official CDC government relay; fallback results are visibly marked partial and never replace a fuller snapshot.
 
-The app now includes a pilot foundation: consumer-facing recall categories, receipt capture and on-device OCR, portable data export/deletion, a health endpoint, and a secret-protected unattended sync endpoint. See [STARTUP_READINESS.md](./STARTUP_READINESS.md) for the private-pilot sequence and explicit gates before a hosted multi-user launch.
+The app now includes a multi-user foundation: verified email-link accounts, household-scoped reads/writes/export/deletion, and a PostgreSQL migration profile. Hosted services are not connected by default. See [MULTI_USER_LAUNCH.md](./MULTI_USER_LAUNCH.md) for setup, acceptance tests and remaining launch gates.
 
 ## Setup
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 22.14+ and npm.
 
 ```bash
 npm install
@@ -47,7 +47,7 @@ Open [http://localhost:3000](http://localhost:3000). The setup command creates `
 
 An openFDA API key is optional. Anonymous access uses FDA's lower public rate limits; set `FDA_API_KEY` in `.env` for regular use.
 
-For an operator-controlled daily refresh, set a random `SYNC_SECRET` of at least 24 characters and send `POST /api/sync` with an `Authorization: Bearer <secret>` header. `/api/health` exposes source freshness without exposing purchase data. The current SQLite build should remain private and single-household; move to authenticated tenancy and managed PostgreSQL before public hosting. A fail-closed proxy allows the notice catalog and operational endpoints on non-loopback hosts but blocks household pages and data export until that authentication boundary exists. Private routes are available only from a loopback host in development; production builds intentionally require the future authenticated tenancy layer.
+For an operator-controlled daily refresh, set a random `SYNC_SECRET` of at least 24 characters and send `POST /api/sync` with an `Authorization: Bearer <secret>` header. `/api/health` exposes source freshness without exposing purchase data. Local mode is loopback-development-only. Hosted mode requires `AUTH_MODE=supabase`, configured Supabase keys, and PostgreSQL in production. Private pages/actions verify account and membership near the database, not just in the proxy. Manual sync is local-only. Keep the development server private.
 
 ## Three-minute demo
 
@@ -72,15 +72,15 @@ npm run build
 
 ## Privacy by design
 
-The purchase ledger stays in a local SQLite database. The MVP has no accounts, analytics, or trackers. Live sync sends a public recall query to openFDA but never sends product purchases, identifiers, retailers, or match results. A future architecture should favor on-device matching, tokenized identifiers, retailer-side matching, and minimal centralized consumer data.
+In local mode the purchase ledger stays in SQLite on this computer. Hosted mode stores confirmed fields in a household-scoped PostgreSQL ledger and uses Supabase for identity; receipt images remain browser-only. Live sync sends public queries to authorities, never purchase histories. There are no analytics or trackers. Existing local purchases are never automatically assigned to hosted accounts.
 
 ## Demo data and limitations
 
-Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC notices. They remain labeled in code and UI. Live FDA, USDA FSIS, and CPSC records link back to their primary source, and the app never treats a match as confirmation. The app does not yet scrape general news, authenticate users, notify devices, reconcile duplicate imports, or model restaurant/supply-chain provenance.
+Seeded recall records are fictionalized demo fixtures inspired by FDA and CPSC notices. They remain labeled in code and UI. Live FDA, USDA FSIS, and CPSC records link back to their primary source, and the app never treats a match as confirmation. USDA can remain blocked or partial. The app does not yet scrape general news, send notifications, invite shared household members, reconcile duplicate imports, or model restaurant/supply-chain provenance. Hosted authentication and migrations need staging validation before launch.
 
 ## Roadmap
 
-1. Add authenticated household tenancy and managed PostgreSQL.
+1. Connect and verify hosted accounts/PostgreSQL in staging; add household invitations.
 2. Add opt-in notification delivery and notice versioning.
 3. Calibrate matching against reviewed examples and expose identifier conflict details more deeply.
 4. Add a separately labeled news safety-signal pipeline with deduplication and publisher policy controls.
