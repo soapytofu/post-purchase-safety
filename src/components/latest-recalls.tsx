@@ -1,11 +1,11 @@
-import Link from "next/link";
+import Link from "./app-link";
 import { ArrowRight, ExternalLink, Newspaper } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { sourceHealth } from "@/lib/source-health";
 
 export async function LatestRecalls() {
   const [recalls, states] = await Promise.all([
-    prisma.recall.findMany({ where: { isFixture: false }, orderBy: [{ recallDate: "desc" }, { createdAt: "desc" }], take: 6 }),
+    prisma.recall.findMany({ where: { isFixture: false }, orderBy: [{ recallDate: "desc" }, { createdAt: "desc" }], take: 3 }),
     prisma.syncState.findMany({ where: { provider: { not: "demo-fixtures" } } }),
   ]);
   const healthy = sourceHealth(states).healthy;

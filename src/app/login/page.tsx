@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { PageHeader } from "@/components/page-header";
 import { SignInForm } from "@/components/sign-in-form";
 import { authConfigured, hostedDatabaseConfigured } from "@/lib/auth-config";

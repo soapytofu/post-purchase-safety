@@ -8,6 +8,6 @@ export function SignInForm() {
   return <form action={action} className="purchase-form">
     <label className="wide">Email address<input name="email" type="email" autoComplete="email" maxLength={254} required placeholder="you@example.com" /></label>
     <button className="button button-primary wide" disabled={pending}>{pending ? "Sending…" : "Email me a secure sign-in link"}</button>
-    <p className={state.sent ? "flash wide" : "inline-error wide"} role="status" aria-live="polite">{state.message}</p>
+    {state.message && <p className={state.sent ? "flash wide" : "inline-error wide"} role="status" aria-live="polite">{state.message}</p>}
   </form>;
 }

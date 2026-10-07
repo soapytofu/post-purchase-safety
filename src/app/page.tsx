@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { ArrowRight, BellRing, CheckCircle2, Clock3, Database, PackageCheck, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
@@ -19,7 +19,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     prisma.recallMatch.findMany({ take: 3, where: { ...matchScope(scope), status: "UNREVIEWED" }, orderBy: [{ confidence: "asc" }, { createdAt: "desc" }], include: { purchase: true, recall: true } }),
   ]);
   return <div className="page">
-    <PageHeader eyebrow={scope.local ? "Local safety network" : "Your household safety network"} title="Your shelf, checked." description={scope.local ? "SafeKeep checks your locally stored purchase history against safety notices." : "Your private household ledger, checked against public safety notices. Receipt images stay in your browser; confirmed items are stored in your account."} action={<Link className="button button-primary" href="/add"><Plus size={16} />Add purchase</Link>} />
+    <PageHeader eyebrow={scope.local ? "Local safety network" : "Your household safety network"} title="Household overview" description={scope.local ? "SafeKeep checks your locally stored purchase history against safety notices." : "Your private household ledger, checked against public safety notices. Receipt images stay in your browser; confirmed items are stored in your account."} action={<Link className="button button-primary" href="/add"><Plus size={16} />Add purchase</Link>} />
     {params.sync === "live" && <div className="flash">Live FDA sync complete: {params.count} ongoing food enforcement records loaded and checked.</div>}
     {params.sync === "cpsc" && <div className="flash">Live CPSC sync complete: {params.count} consumer-product recalls loaded and checked.</div>}
     {params.sync === "fsis" && <div className="flash">USDA FSIS sync complete: {params.count} recent meat, poultry, and processed-egg notices loaded. Check source coverage for whether the full API or fallback feed was used.</div>}
@@ -32,7 +32,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <article><span className="metric-icon coral"><BellRing size={20} /></span><p>High confidence</p><strong>{highCount}</strong><span className="metric-caption">Check these first</span></article>
       <article><span className="metric-icon blue"><Database size={20} /></span><p>Most recent sync</p><strong className="metric-date">{sync ? date(sync.syncedAt) : "Not yet"}</strong><span className="metric-caption">{sync?.recordCount ?? 0} records · {sync?.provider ?? "No provider"}</span></article>
     </section>
-    <LatestRecalls />
     <div className="dashboard-grid">
       <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Needs attention</p><h2>Safety inbox</h2></div><Link href="/alerts">View all <ArrowRight size={15} /></Link></div>
         <div className="alert-list">{matches.length ? matches.map((match) => <Link href={`/alerts#${match.id}`} className="alert-row" key={match.id}><span className={`status-dot dot-${match.confidence.toLowerCase()}`} /><div><strong>{match.purchase.productName}</strong><span>{match.recall.headline}</span></div><ConfidenceBadge confidence={match.confidence} /><ArrowRight size={16} /></Link>) : <div className="empty-state"><CheckCircle2 />No unreviewed matches right now.</div>}</div>
@@ -41,6 +40,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <div className="purchase-list">{recent.map((purchase) => <div key={purchase.id}><span className="product-avatar">{purchase.productName.charAt(0)}</span><div><strong>{purchase.productName}</strong><span>{purchase.retailer} · {date(purchase.purchaseDate)}</span></div><span className={purchase.matches.length ? "recall-state attention" : "recall-state checked"}>{purchase.matches.length ? `${purchase.matches.length} potential match${purchase.matches.length > 1 ? "es" : ""}` : "None found in checked data"}</span></div>)}</div>
       </section>
     </div>
+    <LatestRecalls />
     <section className="how-it-works"><div><p className="eyebrow">A quieter kind of safety tool</p><h2>From receipt to relevant notice</h2><p>Clear evidence at every step, with your data kept close.</p></div>{[["01", "Record", "Scan a receipt, upload a file, enter one item, or import a CSV."], ["02", "Compare", "Deterministic matching checks identifiers, names, lots, and dates."], ["03", "Decide", "See confidence and source details, then record what you did."]].map(([number, title, copy]) => <article key={number}><span>{number}</span><div><h3>{title}</h3><p>{copy}</p></div></article>)}</section>
     <footer className="sync-foot"><Clock3 size={14} /> Last checked {sync ? date(sync.syncedAt) : "never"} · {sync?.provider ?? "No provider"}</footer>
   </div>;
