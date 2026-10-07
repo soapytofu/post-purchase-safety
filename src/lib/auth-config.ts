@@ -5,3 +5,9 @@ export function authConfigured() {
 export function hostedDatabaseConfigured() {
   return /^postgres(?:ql)?:\/\//.test(process.env.DATABASE_URL ?? "");
 }
+
+export function authRedirectUrl(path: "/" | "/login?error=link", requestUrl: string) {
+  // Next's development request URL can use localhost even when the browser
+  // connected to 127.0.0.1. Keep redirects on the configured cookie origin.
+  return new URL(path, process.env.APP_URL ?? requestUrl);
+}
