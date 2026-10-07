@@ -21,6 +21,10 @@ describe("private pilot access boundary", () => {
     assert.equal(isPublicPilotPath("/notices"), true);
     assert.equal(isPublicPilotPath("/api/health"), true);
     assert.equal(isPublicPilotPath("/api/sync"), true);
+    assert.equal(isPublicPilotPath("/api/notifications/dispatch"), true);
+    assert.equal(isPublicPilotPath("/api/notifications/unsubscribe"), true);
+    assert.equal(isPublicPilotPath("/email-preferences"), true);
+    assert.equal(isPublicPilotPath("/api/notifications/private"), false);
     assert.equal(isPublicPilotPath("/purchases"), false);
     assert.equal(isPublicPilotPath("/alerts"), false);
     assert.equal(isPublicPilotPath("/api/export"), false);

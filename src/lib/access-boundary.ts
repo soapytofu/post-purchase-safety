@@ -13,5 +13,5 @@ export function hostnameFromHostHeader(host: string | null): string {
 }
 
 export function isPublicPilotPath(pathname: string): boolean {
-  return pathname === "/notices" || pathname.startsWith("/notices/") || pathname === "/api/health" || pathname === "/api/sync";
+  return pathname === "/notices" || pathname.startsWith("/notices/") || pathname === "/api/health" || pathname === "/api/sync" || pathname === "/email-preferences" || pathname === "/api/notifications/unsubscribe" || pathname === "/api/notifications/dispatch";
 }
