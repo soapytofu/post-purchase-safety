@@ -53,6 +53,11 @@ model AppUser {
   id         String      @id
   createdAt  DateTime    @default(now())
   membership Membership?
+  notificationEmail String?
+  emailAlertsEnabled Boolean @default(false)
+  emailAlertsConsentedAt DateTime?
+  unsubscribeToken String? @unique
+  emailNotifications EmailNotification[]
 }
 
 model Household {
@@ -113,9 +118,33 @@ model RecallMatch {
   updatedAt  DateTime        @updatedAt
   purchase   Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   recall     Recall          @relation(fields: [recallId], references: [id], onDelete: Cascade)
+  emailNotifications EmailNotification[]
 
   @@unique([purchaseId, recallId])
   @@index([confidence, status])
+  @@index([recallId])
+}
+
+model EmailNotification {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  userId String
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchId String?
+  match RecallMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  lockedAt DateTime?
+  sentAt DateTime?
+  providerMessageId String?
+  lastError String?
+  createdAt DateTime @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([userId])
+  @@index([matchId])
 }
 
 model SyncState {

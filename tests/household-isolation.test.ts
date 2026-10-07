@@ -70,6 +70,15 @@ describe("real database household isolation", () => {
     }
   });
 
+  it("blocks direct reads of email preferences and outbox", { skip: !hostedUrl }, async () => {
+    for (const role of ["anon", "authenticated"]) {
+      await assert.rejects(client.$transaction(async tx => {
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role}`);
+        return tx.emailNotification.findMany();
+      }), /permission denied|row-level security/i);
+    }
+  });
+
   it("scopes ledger/export and match queries, excluding legacy purchases", async () => {
     assert.deepEqual((await client.purchase.findMany({ where: purchaseScope(alice) })).map(p => p.id), ["alice-purchase"]);
     assert.deepEqual((await client.recallMatch.findMany({ where: matchScope(alice) })).map(m => m.id), [aliceMatch]);
