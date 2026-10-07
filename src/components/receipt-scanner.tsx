@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Camera, Check, FileImage, LoaderCircle, Plus, ReceiptText, RotateCcw, ScanLine, Trash2, Upload } from "lucide-react";
 import { importReceiptPurchases } from "@/app/actions";
 import { parseReceiptText, type ReceiptLineItem } from "@/lib/receipt-parser";
+import { ReceiptCamera } from "./receipt-camera";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -37,7 +38,7 @@ function SaveButton({ count }: { count: number }) {
 
 export function ReceiptScanner() {
   const uploadRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState("");
   const [merchant, setMerchant] = useState("");
@@ -54,6 +55,7 @@ export function ReceiptScanner() {
   function reset() {
     if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
     setFileName(""); setPreview(""); setMerchant(""); setPurchaseDate(today()); setItems([]); setProgress(0); setError(""); setStatus("Choose a clear, flat receipt image.");
+    if (uploadRef.current) uploadRef.current.value = "";
   }
 
   async function processReceipt(file?: File) {
@@ -96,10 +98,11 @@ export function ReceiptScanner() {
     <div className="receipt-intro"><span className="receipt-icon"><ReceiptText size={24} /></span><div><p className="eyebrow">Fast receipt capture</p><h2>Scan a receipt</h2><p>Upload a file or use your phone camera. SafeKeep reads it on this device, then lets you confirm every item before saving.</p></div><span className="local-badge">Image stays local</span></div>
     {!fileName && <div className="receipt-capture" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void processReceipt(event.dataTransfer.files[0]); }}>
       <ScanLine size={34} /><strong>Drop a receipt here</strong><span>PDF, JPG, PNG, or WebP · up to 10 MB</span>
-      <div className="receipt-actions"><button className="button button-primary" type="button" onClick={() => uploadRef.current?.click()}><Upload size={16} />Upload receipt</button><button className="button button-secondary" type="button" onClick={() => cameraRef.current?.click()}><Camera size={16} />Scan with camera</button></div>
+      <div className="receipt-actions"><button className="button button-primary" type="button" onClick={() => uploadRef.current?.click()}><Upload size={16} />Upload receipt</button><button className="button button-secondary" type="button" onClick={() => setCameraOpen(true)}><Camera size={16} />Scan with camera</button></div>
       <input ref={uploadRef} className="visually-hidden" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => void processReceipt(event.target.files?.[0])} />
-      <input ref={cameraRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={(event) => void processReceipt(event.target.files?.[0])} />
     </div>}
+    {error && !fileName && <p className="inline-error" role="alert">{error}</p>}
+    {cameraOpen && <ReceiptCamera onClose={() => setCameraOpen(false)} onCapture={file => { setCameraOpen(false); void processReceipt(file); }} onUpload={() => { setCameraOpen(false); uploadRef.current?.click(); }} />}
     {fileName && <div className="receipt-workspace">
       <aside className="receipt-preview"><div className="receipt-file"><FileImage size={15} /><span>{fileName}</span><button type="button" onClick={reset} aria-label="Choose another receipt"><RotateCcw size={14} /></button></div>{preview ? <Image src={preview} alt="Receipt selected for review" width={1200} height={1600} unoptimized /> : <div className="receipt-preview-loading"><LoaderCircle className="spin" /></div>}</aside>
       <div className="receipt-review">
