@@ -21,8 +21,10 @@ body{background:var(--cream);font-size:15px;line-height:1.5}
 a[data-app-link]{position:relative}.navigation-hint{position:absolute;top:3px;right:3px;display:flex;opacity:0;pointer-events:none}.navigation-hint.is-pending{opacity:1}a:has(>.navigation-hint.is-pending){cursor:progress;background-color:#e0ece6}.button-primary:has(>.navigation-hint.is-pending){background-color:#104b37}
 .toolbar input,.toolbar select,.purchase-form input,.receipt-fields input,.receipt-item input,.status-form select{min-height:44px;font-size:16px;border-radius:6px}.toolbar{gap:8px}.toolbar input:hover,.toolbar select:hover{border-color:#bac7c0}
 .trust-strip,.flash,.inline-error,.settings-copy,.pilot-boundary p{font-size:14px;line-height:1.6}.trust-strip{border-radius:8px;background:#f0f5f2}
-.metrics{gap:12px}.metrics article{padding:20px;min-height:168px;border-radius:8px;box-shadow:none}.metrics strong{font-size:30px;font-weight:650;letter-spacing:-.8px}.metric-icon{background:none!important;width:auto;height:auto;justify-content:start;margin-bottom:12px}
+.metrics{gap:12px}.metrics article{display:flex;flex-direction:column;align-items:flex-start;padding:20px;min-height:168px;border-radius:8px;box-shadow:none}.metrics strong{font-size:30px;font-weight:650;letter-spacing:-.8px}.metric-icon{background:none!important;width:auto;height:auto;justify-content:start;margin-bottom:12px}
 .metrics p,.metric-caption,.metrics a{font-size:12px}.metrics .metric-date{font-size:18px;letter-spacing:-.3px}
+/* Navigation hints need a positioned link, not the old card's absolute offsets. */
+.metrics a[data-app-link]{position:relative;inset:auto;margin-top:auto;padding-top:12px;min-height:44px}
 .panel,.table-card,.form-card,.receipt-card,.alert-card{border-radius:8px;box-shadow:none}
 .panel-heading h2,.section-heading h2,.form-card-heading h2,.receipt-intro h2,.how-it-works h2{font-family:var(--font-inter);font-weight:650;font-size:20px;letter-spacing:-.4px}.panel-heading>a,.how-it-works p{font-size:13px}
 .alert-row strong,.purchase-list strong{font-size:14px}.alert-row span:not(.badge):not(.status-dot),.purchase-list>div>div span{font-size:12px}.badge,.recall-state,.source-pill{font-size:11px;text-transform:none;letter-spacing:0}.alert-row:hover{background:#f1f5f3}
