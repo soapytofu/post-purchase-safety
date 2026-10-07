@@ -56,6 +56,20 @@ describe("real database household isolation", () => {
     }
   });
 
+  it("protects Prisma migration history from browser-facing roles", { skip: !hostedUrl }, async () => {
+    const rows = await client.$queryRaw<{ relrowsecurity: boolean }[]>`
+      SELECT relrowsecurity FROM pg_class
+      WHERE oid = 'public._prisma_migrations'::regclass
+    `;
+    assert.equal(rows[0]?.relrowsecurity, true);
+    for (const role of ["anon", "authenticated"]) {
+      await assert.rejects(client.$transaction(async tx => {
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role}`);
+        return tx.$queryRaw`SELECT migration_name FROM public._prisma_migrations`;
+      }), /permission denied|row-level security/i);
+    }
+  });
+
   it("scopes ledger/export and match queries, excluding legacy purchases", async () => {
     assert.deepEqual((await client.purchase.findMany({ where: purchaseScope(alice) })).map(p => p.id), ["alice-purchase"]);
     assert.deepEqual((await client.recallMatch.findMany({ where: matchScope(alice) })).map(m => m.id), [aliceMatch]);

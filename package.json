@@ -14,7 +14,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:hosted:prepare": "node scripts/prepare-hosted-schema.mjs",
     "db:hosted:generate": "npm run db:hosted:prepare && prisma generate --schema prisma/hosted/schema.prisma",
-    "db:hosted:deploy": "prisma migrate deploy --schema prisma/hosted/schema.prisma",
+    "db:hosted:deploy": "prisma migrate deploy --schema prisma/hosted/schema.prisma && prisma db execute --schema prisma/hosted/schema.prisma --file scripts/protect-migration-history.sql",
     "build:hosted": "npm run db:hosted:generate && next build --webpack",
     "setup": "npm run db:generate && npm run db:push && npm run db:seed"
   },
