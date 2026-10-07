@@ -1,1 +1,1 @@
-export default function Loading() { return <div className="page"><div className="loading-line" /><div className="loading-grid"><div /><div /><div /></div></div>; }
+export default function Loading() { return <div className="page" aria-busy="true"><p className="loading-caption" role="status">Loading your workspace…</p><div aria-hidden="true"><div className="loading-line" /><div className="loading-grid"><div /><div /><div /></div></div></div>; }
