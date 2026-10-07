@@ -6,6 +6,7 @@ import { ConfidenceBadge } from "@/components/confidence-badge";
 import { SyncButton } from "@/components/sync-button";
 import { requireHousehold } from "@/lib/auth";
 import { purchaseScope, matchScope } from "@/lib/household-data";
+import { LatestRecalls } from "@/components/latest-recalls";
 
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
 
@@ -31,6 +32,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <article><span className="metric-icon coral"><BellRing size={20} /></span><p>High confidence</p><strong>{highCount}</strong><span className="metric-caption">Check these first</span></article>
       <article><span className="metric-icon blue"><Database size={20} /></span><p>Most recent sync</p><strong className="metric-date">{sync ? date(sync.syncedAt) : "Not yet"}</strong><span className="metric-caption">{sync?.recordCount ?? 0} records · {sync?.provider ?? "No provider"}</span></article>
     </section>
+    <LatestRecalls />
     <div className="dashboard-grid">
       <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Needs attention</p><h2>Safety inbox</h2></div><Link href="/alerts">View all <ArrowRight size={15} /></Link></div>
         <div className="alert-list">{matches.length ? matches.map((match) => <Link href={`/alerts#${match.id}`} className="alert-row" key={match.id}><span className={`status-dot dot-${match.confidence.toLowerCase()}`} /><div><strong>{match.purchase.productName}</strong><span>{match.recall.headline}</span></div><ConfidenceBadge confidence={match.confidence} /><ArrowRight size={16} /></Link>) : <div className="empty-state"><CheckCircle2 />No unreviewed matches right now.</div>}</div>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import "./globals.css";
+import "./experience.css";
 
 export const metadata: Metadata = { title: "SafeKeep — Post-purchase safety", description: "A private, explainable post-purchase safety network." };
 
