@@ -7,13 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { requireHousehold } from "@/lib/auth";
 import { purchaseScope } from "@/lib/household-data";
+import { noticeContains } from "@/lib/notice-search";
 
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
 
 export default async function Purchases({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams; const query = params.q ?? ""; const status = params.status ?? "all";
   const scope = await requireHousehold("/purchases");
-  const purchases = await prisma.purchase.findMany({ where: { AND: [purchaseScope(scope), query ? { OR: [{ productName: { contains: query } }, { brand: { contains: query } }, { retailer: { contains: query } }] } : {}, status === "matches" ? { matches: { some: {} } } : status === "clear" ? { matches: { none: {} } } : {}] }, include: { matches: true }, orderBy: { purchaseDate: "desc" } });
+  const purchases = await prisma.purchase.findMany({ where: { AND: [purchaseScope(scope), query ? { OR: [{ productName: noticeContains(query) }, { brand: noticeContains(query) }, { retailer: noticeContains(query) }] } : {}, status === "matches" ? { matches: { some: {} } } : status === "clear" ? { matches: { none: {} } } : {}] }, include: { matches: true }, orderBy: { purchaseDate: "desc" } });
   return <div className="page"><PageHeader eyebrow="Purchase ledger" title="Everything you’re tracking" description="Your household’s private record for checking relevant product safety notices." action={<Link href="/add" className="button button-primary"><Plus size={16} />Add purchase</Link>} />
     {params.added && <div className="flash">Purchase added and checked against current notices.</div>}{params.imported && <div className="flash">Imported and checked {params.imported} purchases.</div>}{params.receipt && <div className="flash">Saved and checked {params.receipt} item{params.receipt === "1" ? "" : "s"} from your receipt.</div>}
     <SearchForm key={`${scope.userId}:${scope.householdId}:${query}:${status}`} action="/purchases" historyKey={searchHistoryKey("purchases", `${scope.userId ?? "local"}:${scope.householdId ?? "local"}`)} defaultQuery={query} label="Search purchases" placeholder="Search product, brand, or retailer"><select name="status" aria-label="Purchase recall status" defaultValue={status}><option value="all">All recall states</option><option value="matches">Potential matches</option><option value="clear">None found in checked data</option></select><SubmitButton className="button button-secondary" pendingLabel="Searching…">Apply</SubmitButton></SearchForm>
