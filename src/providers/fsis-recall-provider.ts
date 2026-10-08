@@ -114,14 +114,15 @@ function normalizeRssItem(item: RssItem): NormalizedRecall | null {
   if (!title || Number.isNaN(publishedAt.getTime())) return null;
   const slug = url.pathname.split("/").filter(Boolean).at(-1);
   if (!slug) return null;
-  const brand = title.split(/\s+(?:Recalls|Issues)\s+/i)[0] || "Not specified";
+  // Agency-issued alerts do not identify a firm merely by naming FSIS.
+  const brand = /\s+Recalls\s+/i.test(title) ? title.split(/\s+Recalls\s+/i)[0] : "Not specified";
   const productName = title.replace(/^.*?\s+(?:Recalls|Issues)\s+/i, "").replace(/\s+Due\s+to\s+.*$/i, "");
   return {
     externalId: `RSS-${slug}`,
     sourceAuthority: "USDA FSIS",
     headline: title,
     description: description || "See the official USDA FSIS notice for details.",
-    brand,
+    brand: /^(?:USDA\s+)?FSIS$/i.test(brand) ? "Not specified" : brand,
     productName: productName || title,
     category: "Meat, poultry & processed egg products",
     upcs: extractUpcs(description),

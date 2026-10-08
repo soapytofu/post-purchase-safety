@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { FsisRecallProvider, normalizeFsisRecall, type FsisRecall } from "@/providers/fsis-recall-provider";
+import { noticeBrand } from "@/lib/notice-brand";
 
 const apiRecord: FsisRecall = {
   field_title: "Example Foods Recalls Beef Patties Due to Possible Contamination",
@@ -26,6 +27,14 @@ const relayXml = `<?xml version="1.0"?><rss version="2.0"><channel>
 </channel></rss>`;
 
 describe("USDA FSIS provider", () => {
+  it("does not confuse the issuing agency with a recalling firm", async () => {
+    const xml = relayXml.replace("Star Foods Recalls Raw Beef Products Due to Lack of Inspection", "FSIS Issues Public Health Alert for Chicken Products");
+    const mockFetch = (async () => new Response(xml, { status: 200 })) as typeof fetch;
+    const result = await new FsisRecallProvider(mockFetch).fetchRecalls();
+    assert.equal(result.records[0].brand, "Not specified");
+    assert.equal(noticeBrand({ sourceAuthority: "USDA FSIS", brand: "FSIS" }), "Not specified");
+    assert.equal(noticeBrand({ sourceAuthority: "USDA FSIS", brand: "Star Foods" }), "Star Foods");
+  });
   it("normalizes full API records with identifiers and HTTPS provenance", () => {
     const normalized = normalizeFsisRecall(apiRecord);
     assert.equal(normalized.externalId, "099-2026");
