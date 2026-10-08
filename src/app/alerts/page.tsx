@@ -15,7 +15,7 @@ const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short",
 export default async function Alerts({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
   const confidence = ["HIGH", "MEDIUM", "LOW"].includes(params.confidence ?? "") ? params.confidence as Confidence : undefined;
-  const scope = await requireHousehold();
+  const scope = await requireHousehold("/alerts");
   const matches = await prisma.recallMatch.findMany({ where: { ...matchScope(scope), ...(confidence ? { confidence } : {}) }, include: { purchase: true, recall: true }, orderBy: [{ status: "asc" }, { confidence: "asc" }, { createdAt: "desc" }] });
   return <div className="page"><PageHeader eyebrow="Safety inbox" title="Potential recall matches" description="Each card separates authoritative notice details from SafeKeep’s inferred match. Check the source before acting." />
     <div className="filter-pills">{["ALL", "HIGH", "MEDIUM", "LOW"].map((item) => <Link className={(!confidence && item === "ALL") || confidence === item ? "active" : ""} href={item === "ALL" ? "/alerts" : `/alerts?confidence=${item}`} key={item}>{item === "ALL" ? "All matches" : item}</Link>)}</div>

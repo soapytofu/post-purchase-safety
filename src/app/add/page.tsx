@@ -8,7 +8,7 @@ import { requireHousehold } from "@/lib/auth";
 
 export default async function Add({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
-  await requireHousehold();
+  await requireHousehold("/add");
   return <div className="page"><PageHeader eyebrow="Add / import" title="Track a recent purchase" description="The more identifying detail you provide, the more precise a potential recall match can be." />
     {params.error && <div className="inline-error">{params.error}</div>}
     <ReceiptScanner />

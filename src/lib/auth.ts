@@ -3,7 +3,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authClient } from "./supabase-server";
-import { authConfigured, hostedDatabaseConfigured } from "./auth-config";
+import { authConfigured, hostedDatabaseConfigured, safeReturnTo } from "./auth-config";
 import { hostnameFromHostHeader, isLoopbackHostname } from "./access-boundary";
 import { provisionHousehold } from "./household-data";
 import { prisma } from "./prisma";
@@ -21,9 +21,9 @@ export const householdSession = cache(async () => {
   return { ...membership, userId: user.id, local: false };
 });
 
-export async function requireHousehold() {
+export async function requireHousehold(returnTo = "/") {
   const session = await householdSession();
-  if (!session) redirect("/login");
+  if (!session) redirect(`/login?next=${encodeURIComponent(safeReturnTo(returnTo))}`);
   return session;
 }
 

@@ -12,7 +12,7 @@ const dateTime = (value: Date | null) => value ? new Intl.DateTimeFormat("en-US"
 
 export default async function Settings({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
-  const scope = await requireHousehold();
+  const scope = await requireHousehold("/settings");
   const preferences = scope.userId ? await prisma.appUser.findUnique({ where: { id: scope.userId }, select: { emailAlertsEnabled: true, notificationEmail: true } }) : null;
   const [purchaseCount, recallCount, matchCount, states] = await Promise.all([prisma.purchase.count({ where: purchaseScope(scope) }), prisma.recall.count({ where: { isFixture: false } }), prisma.recallMatch.count({ where: matchScope(scope) }), prisma.syncState.findMany({ where: { provider: { not: "demo-fixtures" } }, orderBy: { provider: "asc" } })]);
   return <div className="page">

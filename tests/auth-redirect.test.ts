@@ -1,6 +1,13 @@
 import { it } from "node:test";
 import assert from "node:assert/strict";
-import { authRedirectUrl } from "../src/lib/auth-config";
+import { authRedirectUrl, safeReturnTo } from "../src/lib/auth-config";
+
+it("preserves intended private pages but rejects external and unexpected destinations", () => {
+  assert.equal(safeReturnTo("/add"), "/add");
+  assert.equal(safeReturnTo("/purchases?q=milk"), "/purchases?q=milk");
+  for (const value of ["//evil.example", "https://evil.example", "/\\evil.example", "/auth/callback", "/%2f%2fevil.example", "/add\n", null]) assert.equal(safeReturnTo(value), "/");
+  assert.equal(authRedirectUrl("https://evil.example", "https://safety.example/auth/callback").origin, "https://safety.example");
+});
 
 it("keeps successful and failed sign-in redirects on the configured cookie origin", () => {
   const previous = process.env.APP_URL;

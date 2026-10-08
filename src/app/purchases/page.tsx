@@ -12,7 +12,7 @@ const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short",
 
 export default async function Purchases({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams; const query = params.q ?? ""; const status = params.status ?? "all";
-  const scope = await requireHousehold();
+  const scope = await requireHousehold("/purchases");
   const purchases = await prisma.purchase.findMany({ where: { AND: [purchaseScope(scope), query ? { OR: [{ productName: { contains: query } }, { brand: { contains: query } }, { retailer: { contains: query } }] } : {}, status === "matches" ? { matches: { some: {} } } : status === "clear" ? { matches: { none: {} } } : {}] }, include: { matches: true }, orderBy: { purchaseDate: "desc" } });
   return <div className="page"><PageHeader eyebrow="Purchase ledger" title="Everything you’re tracking" description="Your household’s private record for checking relevant product safety notices." action={<Link href="/add" className="button button-primary"><Plus size={16} />Add purchase</Link>} />
     {params.added && <div className="flash">Purchase added and checked against current notices.</div>}{params.imported && <div className="flash">Imported and checked {params.imported} purchases.</div>}{params.receipt && <div className="flash">Saved and checked {params.receipt} item{params.receipt === "1" ? "" : "s"} from your receipt.</div>}
