@@ -5,6 +5,10 @@ export type ReceiptLineItem = {
   category: string;
   price: string;
   selected: boolean;
+  rawLine: string;
+  printedCode: string;
+  upc: string;
+  lotNumber: string;
 };
 
 export type ParsedReceipt = {
@@ -58,6 +62,7 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   for (const line of lines) {
     const match = line.match(/^(.{2,80}?)\s+\$?(-?\d{1,5}[.,]\d{2})\s*[A-Z]?$/i);
     if (!match || nonItemPattern.test(match[1])) continue;
+    const printedCode = match[1].match(/^\d{4,14}(?=\s)/)?.[0] ?? match[1].match(/\b[A-Z]?\d{4,14}$/)?.[0] ?? "";
     const productName = match[1]
       .replace(/^\d+\s*[x@]\s*/i, "")
       .replace(/^\d{4,14}\s+/, "")
@@ -66,10 +71,10 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
       .replace(/\s+/g, " ")
       .trim();
     if (productName.length < 2 || !/[A-Za-z]/.test(productName)) continue;
-    const key = `${productName.toLowerCase()}|${match[2]}`;
+    const key = `${productName.toLowerCase()}|${match[2]}|${printedCode}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    items.push({ id: `receipt-${items.length + 1}`, productName, brand: "Not specified", category: categoryFor(productName), price: match[2].replace(",", "."), selected: true });
+    items.push({ id: `receipt-${items.length + 1}`, productName, brand: "", category: categoryFor(productName), price: match[2].replace(",", "."), selected: true, rawLine: line, printedCode, upc: "", lotNumber: "" });
     if (items.length === 40) break;
   }
 

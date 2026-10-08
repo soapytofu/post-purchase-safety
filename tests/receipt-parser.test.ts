@@ -1,8 +1,33 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseReceiptText } from "@/lib/receipt-parser";
+import { isValidGtin, receiptSchema } from "@/lib/receipt-import";
+import { matchPurchaseToRecall } from "@/domain/matching/match";
+import type { NormalizedRecall } from "@/domain/types";
 
 describe("receipt parser", () => {
+  it("preserves printed evidence without guessing brand or treating a SKU as a barcode", () => {
+    const parsed = parseReceiptText("SHOP\n2026-09-20\n012345678905 TOMATO SOUP 3.50\nSOAP A123456 2.50");
+    assert.equal(parsed.items[0].printedCode, "012345678905");
+    assert.equal(parsed.items[0].rawLine, "012345678905 TOMATO SOUP 3.50");
+    assert.equal(parsed.items[0].brand, "");
+    assert.equal(parsed.items[0].upc, "");
+    assert.equal(parsed.items[1].printedCode, "A123456");
+    assert.equal(isValidGtin("012345678905"), true);
+    assert.equal(isValidGtin("012345678906"), false);
+    assert.equal(isValidGtin("123456"), false);
+  });
+
+  it("imports confirmed barcode/lot evidence and enables identifier matching without a brand", () => {
+    const item = parseReceiptText("SHOP\n2026-09-20\n012345678905 TOMATO SOUP 3.50").items[0];
+    const payload = receiptSchema.parse({ merchant: "SHOP", purchaseDate: "2026-09-20", items: [{ ...item, upc: item.printedCode, lotNumber: "L1" }] });
+    assert.equal(payload.items[0].upc, "012345678905");
+    assert.equal(payload.items[0].brand, "Not specified");
+    const recall: NormalizedRecall = { externalId: "test", sourceAuthority: "FDA", headline: "Soup recall", description: "Test", brand: "Soup Co", productName: "TOMATO SOUP", category: "Packaged food", upcs: ["012345678905"], lotNumbers: ["L1"], recallDate: new Date("2026-09-22"), recommendedAction: "Check package", sourceUrl: "https://example.com" };
+    assert.equal(matchPurchaseToRecall({ ...payload.items[0], purchaseDate: new Date("2026-09-20") }, recall).confidence, "HIGH");
+    assert.equal(receiptSchema.safeParse({ ...payload, purchaseDate: "2026-02-30" }).success, false);
+    assert.equal(receiptSchema.safeParse({ ...payload, items: [{ ...item, upc: "123456" }] }).success, false);
+  });
   it("extracts merchant, date, and line items without treating totals as products", () => {
     const parsed = parseReceiptText(`GREEN VALLEY MARKET
 123 Main Street

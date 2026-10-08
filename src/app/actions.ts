@@ -14,21 +14,12 @@ import { CpscRecallProvider } from "@/providers/cpsc-recall-provider";
 import { FsisRecallProvider } from "@/providers/fsis-recall-provider";
 import { requireHousehold, requireLocalOperator } from "@/lib/auth";
 import { purchaseScope, deleteHouseholdPurchases, setHouseholdMatchStatus } from "@/lib/household-data";
+import { receiptSchema } from "@/lib/receipt-import";
 
 const purchaseSchema = z.object({
   productName: z.string().trim().min(1), brand: z.string().trim().min(1), category: z.string().trim().min(1),
   retailer: z.string().trim().min(1), purchaseDate: z.string().refine((value) => !Number.isNaN(Date.parse(value))),
   upc: z.string().trim().optional(), lotNumber: z.string().trim().optional(),
-});
-
-const receiptSchema = z.object({
-  merchant: z.string().trim().min(1).max(120),
-  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => !Number.isNaN(Date.parse(`${value}T12:00:00.000Z`))),
-  items: z.array(z.object({
-    productName: z.string().trim().min(1).max(200),
-    brand: z.string().trim().min(1).max(120),
-    category: z.string().trim().min(1).max(120),
-  })).min(1).max(50),
 });
 
 export async function addPurchase(formData: FormData) {
@@ -61,7 +52,7 @@ export async function importReceiptPurchases(formData: FormData) {
   let payload: unknown;
   try { payload = JSON.parse(typeof value === "string" ? value : ""); } catch { redirect("/add?error=The%20receipt%20details%20could%20not%20be%20read"); }
   const parsed = receiptSchema.safeParse(payload);
-  if (!parsed.success) redirect("/add?error=Review%20the%20merchant%2C%20date%2C%20and%20selected%20items");
+  if (!parsed.success) redirect("/add?error=Review%20the%20merchant%2C%20date%2C%20barcode%20digits%2C%20and%20selected%20items");
   await prisma.purchase.createMany({ data: parsed.data.items.map((item) => ({
     ...item,
     householdId: scope.householdId,

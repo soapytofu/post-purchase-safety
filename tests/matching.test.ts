@@ -7,6 +7,11 @@ const purchase: MatchablePurchase = { productName: "Romaine Lettuce Salad Kit 12
 const recall: NormalizedRecall = { externalId: "x", sourceAuthority: "FDA", headline: "x", description: "x", brand: "Green Valley", productName: "Romaine Lettuce Salad Kit", category: "Packaged Produce", upcs: ["041234567890"], lotNumbers: ["RV2409A"], distributionStartDate: new Date("2026-08-20"), distributionEndDate: new Date("2026-09-12"), recallDate: new Date("2026-09-13"), recommendedAction: "Return", sourceUrl: "https://example.com" };
 
 describe("matching engine", () => {
+  it("does not award brand evidence for matching unknown placeholders", () => {
+    const result = matchPurchaseToRecall({ ...purchase, brand: "Not specified", upc: null, lotNumber: null }, { ...recall, brand: "Not specified" });
+    assert.equal(result.reasons.includes("Brand matches"), false);
+    assert.equal(result.confidence, "LOW");
+  });
   it("returns HIGH for exact UPC and lot", () => assert.equal(matchPurchaseToRecall(purchase, recall).confidence, "HIGH"));
   it("penalizes a UPC mismatch", () => assert.notEqual(matchPurchaseToRecall({ ...purchase, upc: "999999999999", lotNumber: null }, recall).confidence, "HIGH"));
   it("returns MEDIUM for the same product when lot is unknown", () => assert.equal(matchPurchaseToRecall({ ...purchase, upc: null, lotNumber: null, productName: recall.productName }, recall).confidence, "MEDIUM"));

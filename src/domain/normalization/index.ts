@@ -13,7 +13,10 @@ export function normalizeText(value?: string | null): string {
     .replace(/\s+/g, " ");
 }
 
-export const normalizeBrand = normalizeText;
+export function normalizeBrand(value?: string | null): string {
+  const normalized = normalizeText(value);
+  return ["not specified", "unknown", "unspecified", "n a", "na"].includes(normalized) ? "" : normalized;
+}
 export const normalizeProductName = normalizeText;
 
 export function normalizeUpc(value?: string | null): string {
