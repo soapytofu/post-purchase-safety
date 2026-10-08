@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma";
 import { broadCategoryFor, categoryWhere, noticeCategories } from "@/lib/notice-category";
 import { recallDateFilter } from "@/lib/recent-recalls";
 import { sourceHealth } from "@/lib/source-health";
+import { noticeContains } from "@/lib/notice-search";
+import { redirect } from "next/navigation";
 
 const PAGE_SIZE = 12;
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
@@ -44,15 +46,16 @@ export default async function Notices({ searchParams }: { searchParams: Promise<
       sourceWhere(source),
       categoryWhere(category),
       recallDateFilter(period),
-      q ? { OR: [{ headline: { contains: q } }, { productName: { contains: q } }, { brand: { contains: q } }, { description: { contains: q } }] } : {},
+      q ? { OR: [{ headline: noticeContains(q) }, { productName: noticeContains(q) }, { brand: noticeContains(q) }, { description: noticeContains(q) }] } : {},
     ],
   };
-  const [notices, total, syncStates] = await Promise.all([
-    prisma.recall.findMany({ where, orderBy: [{ recallDate: "desc" }, { createdAt: "desc" }], skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
+  const [total, syncStates] = await Promise.all([
     prisma.recall.count({ where }),
     prisma.syncState.findMany({ orderBy: { provider: "asc" } }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > pages) redirect(href({ q, source, category, period, page: pages }));
+  const notices = await prisma.recall.findMany({ where, orderBy: [{ recallDate: "desc" }, { createdAt: "desc" }], skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE });
   const fda = sourceHealth(syncStates).sources.find(item => item.provider === "openfda-food-enforcement")!;
   const foodUnavailable = (category === "food" || source === "fda") && (fda.status !== "SUCCEEDED" || fda.stale);
 
@@ -68,7 +71,7 @@ export default async function Notices({ searchParams }: { searchParams: Promise<
     <nav className="filter-pills" aria-label="Recall date range">{[["7", "Past week"], ["30", "Past month"], ["90", "Past 3 months"], ["all", "All dates"]].map(([value, label]) => <Link key={value} href={href({ q, source, category, page: 1, period: value })} className={period === value ? "active" : ""} aria-current={period === value ? "page" : undefined}>{label}</Link>)}</nav>
     <MobileRecallFilter category={category} source={source} period={period} q={q} />
     <SearchForm key={`${q}:${category}:${source}:${period}`} action="/notices" className="toolbar notice-toolbar" historyKey={searchHistoryKey("recalls")} defaultQuery={q} label="Search recalls" placeholder="Search products, brands or notices"><input type="hidden" name="period" value={period} /><input type="hidden" name="category" value={category} /><select name="source" aria-label="Recall authority" defaultValue={source}><option value="all">All live sources</option><option value="fda">FDA food</option><option value="fsis">USDA meat, poultry & eggs</option><option value="cpsc">CPSC products</option><option value="demo">Demo notices</option></select><SubmitButton className="button button-secondary" pendingLabel="Searching…">Search</SubmitButton></SearchForm>
-    <div className="notice-summary"><strong>{total.toLocaleString()} notice{total === 1 ? "" : "s"}</strong><span>Page {Math.min(page, pages)} of {pages}</span></div>
+    <div className="notice-summary"><strong>{total.toLocaleString()} notice{total === 1 ? "" : "s"}</strong><span>Page {page} of {pages}</span></div>
     <section className="notice-catalog">
       {notices.map((notice) => <article className="notice-card" key={notice.id}><div className="notice-card-meta"><span className={`source-pill ${notice.isFixture ? "source-demo" : ""}`}>{notice.isFixture ? "Demo" : notice.sourceAuthority}</span><time>{date(notice.recallDate)}</time><a className="official-notice-link" href={notice.sourceUrl} target="_blank" rel="noreferrer">Official notice <ExternalLink size={14} /></a></div><h2>{notice.headline}</h2><p>{notice.description}</p><dl><div><dt>Product</dt><dd>{notice.productName}</dd></div><div><dt>Brand / firm</dt><dd>{notice.brand || "Not specified"}</dd></div><div><dt>Category</dt><dd>{broadCategoryFor(notice)}</dd></div><div><dt>Hazard / class</dt><dd>{notice.severity || "Not specified"}</dd></div></dl><div className="notice-action"><div><AlertTriangle size={16} /><span>{notice.recommendedAction}</span></div></div></article>)}
       {!notices.length && <div className="empty-state"><AlertTriangle /><h2>No matching notices in available data</h2><p>{foodUnavailable ? "FDA food coverage is currently incomplete or unavailable. Zero results do not mean there are no food recalls." : "Try a broader date range or clear your search. Missing results do not mean a product is safe."}</p><div className="empty-actions"><Link className="button button-secondary" href="/notices?period=all">Reset filters · all dates</Link>{(category === "food" || source === "fda") && <a className="button button-secondary" href="https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts" target="_blank" rel="noreferrer">Check FDA notices <ExternalLink size={14} /></a>}</div></div>}

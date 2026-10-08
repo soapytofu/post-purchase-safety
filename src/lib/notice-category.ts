@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { noticeContains } from "./notice-search";
 
 export const noticeCategories = [
   { id: "food", label: "Food & beverages", description: "FDA-regulated foods, drinks, supplements, and pet food" },
@@ -13,10 +14,10 @@ export const noticeCategories = [
 export type NoticeCategoryId = typeof noticeCategories[number]["id"];
 
 const fieldContains = (value: string): Prisma.RecallWhereInput[] => [
-  { headline: { contains: value } },
-  { productName: { contains: value } },
-  { category: { contains: value } },
-  { description: { contains: value } },
+  { headline: noticeContains(value) },
+  { productName: noticeContains(value) },
+  { category: noticeContains(value) },
+  { description: noticeContains(value) },
 ];
 
 const keywordWhere = (keywords: readonly string[]): Prisma.RecallWhereInput => ({ OR: keywords.flatMap(fieldContains) });
@@ -26,15 +27,12 @@ const electronicsKeywords = ["battery", "charger", "power bank", "electronic", "
 const outdoorKeywords = ["bicycle", "bike", "helmet", "sport", "pool", "camp", "outdoor", "atv", "scooter", "skate", "exercise", "fitness"];
 const homeKeywords = ["furniture", "household", "kitchen", "chair", "table", "dresser", "cabinet", "mattress", "mug", "stool", "lamp", "candle", "cookware"];
 
-const consumerGroups = [keywordWhere(babyKeywords), keywordWhere(electronicsKeywords), keywordWhere(outdoorKeywords), keywordWhere(homeKeywords)];
-
 export function categoryWhere(category: string): Prisma.RecallWhereInput {
-  if (category === "food") return { sourceAuthority: { contains: "FDA" } };
+  const consumerGroups = [babyKeywords, electronicsKeywords, outdoorKeywords, homeKeywords].map(keywordWhere);
+  if (category === "food") return { sourceAuthority: noticeContains("FDA") };
   if (category === "meat") return { sourceAuthority: "USDA FSIS" };
-  if (category === "baby-kids") return { AND: [{ sourceAuthority: "CPSC" }, keywordWhere(babyKeywords)] };
-  if (category === "electronics") return { AND: [{ sourceAuthority: "CPSC" }, keywordWhere(electronicsKeywords)] };
-  if (category === "outdoor") return { AND: [{ sourceAuthority: "CPSC" }, keywordWhere(outdoorKeywords)] };
-  if (category === "home") return { AND: [{ sourceAuthority: "CPSC" }, keywordWhere(homeKeywords)] };
+  const groupIndex = ["baby-kids", "electronics", "outdoor", "home"].indexOf(category);
+  if (groupIndex >= 0) return { AND: [{ sourceAuthority: "CPSC" }, consumerGroups[groupIndex], ...consumerGroups.slice(0, groupIndex).map(group => ({ NOT: group }))] };
   if (category === "other") return { AND: [{ sourceAuthority: "CPSC" }, { NOT: { OR: consumerGroups } }] };
   return {};
 }
