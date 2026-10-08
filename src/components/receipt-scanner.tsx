@@ -20,19 +20,19 @@ async function* receiptImages(file: File) {
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
   try {
-  if (pdf.numPages > 10) throw new Error("Upload a PDF with 10 pages or fewer, or split it into smaller files.");
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-  const page = await pdf.getPage(pageNumber);
-  const baseViewport = page.getViewport({ scale: 1 });
-  const viewport = page.getViewport({ scale: Math.min(2.5, 2200 / baseViewport.width) });
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  await page.render({ canvas, viewport }).promise;
-  const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-  page.cleanup();
-  yield { source: dataUrl, page: pageNumber, pages: pdf.numPages };
-  }
+    if (pdf.numPages > 10) throw new Error("Upload a PDF with 10 pages or fewer, or split it into smaller files.");
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(2.5, 2200 / baseViewport.width) });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      page.cleanup();
+      yield { source: dataUrl, page: pageNumber, pages: pdf.numPages };
+    }
   } finally { await pdf.destroy(); }
 }
 
@@ -84,16 +84,16 @@ export function ReceiptScanner() {
       const texts: string[] = [];
       let pageCount = 1;
       for await (const image of receiptImages(file)) {
-      if (!current()) { if (image.source.startsWith("blob:")) URL.revokeObjectURL(image.source); return; }
-      pageCount = image.pages;
-      if (image.page === 1) { previewRef.current = image.source; setPreview(image.source); }
-      const result = await recognize(image.source, "eng", { logger: (message) => {
+        if (!current()) { if (image.source.startsWith("blob:")) URL.revokeObjectURL(image.source); return; }
+        pageCount = image.pages;
+        if (image.page === 1) { previewRef.current = image.source; setPreview(image.source); }
+        const result = await recognize(image.source, "eng", { logger: (message) => {
+          if (!current()) return;
+          if (message.status === "recognizing text") setProgress((image.page - 1 + message.progress) / image.pages);
+          setStatus(message.status === "recognizing text" ? `Reading page ${image.page} of ${image.pages}… ${Math.round(message.progress * 100)}%` : "Preparing text reader…");
+        } });
         if (!current()) return;
-        if (message.status === "recognizing text") setProgress((image.page - 1 + message.progress) / image.pages);
-        setStatus(message.status === "recognizing text" ? `Reading page ${image.page} of ${image.pages}… ${Math.round(message.progress * 100)}%` : "Preparing text reader…");
-      } });
-      if (!current()) return;
-      texts.push(result.data.text);
+        texts.push(result.data.text);
       }
       if (!current()) return;
       const parsed = parseReceiptText(texts.join("\n"));
