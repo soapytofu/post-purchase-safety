@@ -1,7 +1,9 @@
 # SafeKeep Business — design-partner pilot specification
 
-Status: proposed; not implemented or a claim of launch readiness.  
-Version: 0.1 · October 10, 2026  
+Status: proposed; not implemented or a claim of launch readiness.
+
+Version: 0.1 · October 10, 2026
+
 Owner: founder; proposed decisions require validation with design partners.
 
 ## 1. Company thesis and product boundary
