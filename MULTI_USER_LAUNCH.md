@@ -73,7 +73,19 @@ The app runs locally against staging at `http://127.0.0.1:3002`; use that exact 
 4. Invite a third account as staff using its exact verified email. Share the link privately; no email is sent. Test incorrect email, expiry, revocation, replay, role changes and removal. Managers may export locations, staff may not; only owners may manage team/locations.
 5. Verify archive/restore and stable location codes, and check that all four tables reject direct Data API access. Do not enable inventory monitoring or advertise a live safety service: those features are not part of this milestone.
 
-Workspace selection is explicit navigation, not a trusted client-side tenant cookie. Every private operation rechecks database membership from a server-verified identity. The local pilot bypass never grants business access. See `docs/BUSINESS_PILOT_BACKLOG.md` for the next inventory milestone.
+Workspace selection is explicit navigation, not a trusted client-side tenant cookie. Every private operation rechecks database membership from a server-verified identity. The local pilot bypass never grants business access. See `docs/BUSINESS_PILOT_BACKLOG.md` for staged implementation status.
+
+### Inventory activation (October 21, 2026)
+
+Migration `202610210002_inventory_snapshots` adds three server-only inventory tables and a nullable current-snapshot pointer to business locations. It is applied to staging. Before/after fingerprints and counts matched across all twelve existing application tables (excluding only the newly added pointer field); the existing household still has six purchases and 952 public notices remain. All three new tables were empty after deployment, RLS was enabled, and direct `anon`/`authenticated` reads were denied. Prisma reported no schema drift. No test inventory was inserted into staging.
+
+Open `/business`, select a business, then **Open inventory**. Owners/managers select exactly the active stores represented by a complete CSV, download the template if needed, preview/validate, and explicitly confirm. Confirmation replaces current stock for those stores only; it is not an adjustment/delta import. A zero quantity is valid; every selected store must have at least one row. Staff can read current stock but cannot import or download the template.
+
+Files must be UTF-8 CSV, up to 5 MiB and 10,000 rows, with at most 50 selected stores. Required headers: `location_code,sku,product_name,quantity_on_hand,inventory_as_of`. Optional: `brand,gtin,manufacturer,model_number,lot_number,serial_number,production_date,supplier,category`. Timestamps require a timezone and must agree within each store. Product identifiers remain strings; no brand is inferred. Any validation issue blocks the whole file; the UI lists up to 200 issues and the total count.
+
+Previews are immutable and expire after 30 minutes. Confirmation rechecks membership, active stores and baseline snapshots under an organization-scoped transaction. Older/equal timestamps and changed baselines are rejected; duplicate/replayed content cannot reactivate historical stock. Prior snapshots remain stored. Expiry is not physical deletion: draft/history retention and cleanup still need an agreed policy and implementation. Imports run synchronously; the disposable PostgreSQL 10,000-row test passed, but production hosting timeouts/load need separate validation before making throughput commitments.
+
+SQLite regression tests, PostgreSQL isolation/rollback tests and synthetic browser tests passed, including 320/390/1440px layouts. Complete real-account staging acceptance before enrolling a partner. Inventory matching, exposure cases, business notification delivery, stock exports, automatic refresh and retention jobs are not enabled. Stale stock is labeled after 24 hours; current inventory is not a safety assurance. Existing household routes, imports and matching remain separate.
 
 ## Reference documentation
 

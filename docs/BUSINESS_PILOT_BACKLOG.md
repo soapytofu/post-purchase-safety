@@ -1,12 +1,12 @@
 # SafeKeep Business — staged implementation backlog
 
-October 10, 2026 · Proposed; no business features are implemented by this document.
+October 10, 2026 · Staged plan; implementation status updated October 21, 2026.
 
 Source of scope: [pilot specification](BUSINESS_PILOT_SPEC.md). Discovery method: [retailer interview guide](RETAILER_INTERVIEW_GUIDE.md).
 
 ## Current foundation and boundaries
 
-Existing code provides household-scoped purchases, public notices, provider health, receipt/manual/CSV capture, deterministic matching and an opt-in email integration. Business membership, stock snapshots, durable-product model/serial matching, immutable notice revisions and response cases are new work.
+Existing code provides household-scoped purchases, public notices, provider health, receipt/manual/CSV capture, deterministic matching and an opt-in email integration. Business membership and inventory snapshots are now implemented separately. Durable-product model/serial matching, immutable notice revisions and response cases remain new work.
 
 The latest review added search/category consistency, receipt identifier review and safer UI behavior. It did not establish production source completeness, real email delivery, enterprise security or a business pilot. Existing launch checklists remain applicable; historical unchecked items should be independently re-verified rather than presumed completed.
 
@@ -44,6 +44,12 @@ Acceptance:
 Exit: independent tenancy/role review and migration tests on isolated local/staging databases. Never test an isolation attack with unrelated real accounts/data.
 
 ## Milestone 2 — dependable inventory import
+
+Implementation update (October 21, 2026): owners/managers can upload strict-template UTF-8 CSVs, select active stores, validate and preview all rows through pagination, and explicitly confirm complete stock replacement for those stores. Staff can view current inventory but cannot upload, confirm or download the template. Other stores and household purchases remain unchanged. Zero quantities and leading-zero identifiers are preserved; missing identifiers are not guessed. Limits are 5 MiB, 10,000 rows and 50 selected stores; validation shows the first 200 issues with the total count and blocks the whole file if any are present.
+
+Imports activate atomically with immutable historical snapshots, scoped authorization, 30-minute draft expiry, baseline-change checks and older/equal timestamp rejection. Duplicate content never reactivates historical stock. Draft expiry prevents access/confirmation; it does not physically purge stored draft data. Retention cleanup remains a future operational requirement. Stock search, location filters, row/unit totals, pagination and 24-hour stale warnings are implemented. Inventory is not yet matched against recalls, and this is not a live POS integration.
+
+The additive inventory migration is applied to staging with existing twelve-table row counts and fingerprints unchanged, browser-role access denied and no schema drift. Tests passed against SQLite and disposable PostgreSQL, including a 10,000-row import, cross-organization/role checks and multi-store rollback. Synthetic browser flows passed at 320/390/1440px. Real-account acceptance and permissioned partner exports remain pilot gates. Stock CSV export, column mapping and automated draft retention are not implemented; the available download is an input template only.
 
 **B2.1 — Pure CSV validation.** Implement the spec’s columns, limits, identifier preservation, quantities, timestamps and duplicate rules. Test leading zeros, quoted cells, malformed headers, over-limit files and spreadsheet-formula exports.
 
@@ -113,4 +119,4 @@ Extend if the evidence is insufficient. No-recall weeks are not proof of product
 - Gate external integrations on observed partner needs. Avoid a general product graph, mobile rewrite, marketplace, billing stack or AI risk prediction during this pilot.
 - Record scope changes and disconfirming evidence. A request from one partner is not automatically a reusable product requirement.
 
-**First engineering slice after scope confirmation:** business organization authorization and workspace navigation, using synthetic fixtures and two-organization isolation tests. Inventory import follows only after this boundary is verified.
+**Next engineering slice:** notice revisions and benchmarked, organization-scoped exposure evaluation. Keep business inventory clearly labeled as unmonitored until that workflow is implemented and validated.
