@@ -124,4 +124,13 @@ describe("inventory snapshots and isolation", () => {
   it("blocks direct PostgreSQL API-role access to inventory data", { skip: !hostedUrl }, async () => {
     for (const role of ["anon", "authenticated"]) for (const table of ["InventoryImport", "InventorySnapshot", "InventoryStockRow"]) for (const sql of [`SELECT * FROM "${table}"`, `INSERT INTO "${table}" DEFAULT VALUES`, `UPDATE "${table}" SET "id"="id"`, `DELETE FROM "${table}"`]) await assert.rejects(client.$transaction(async tx => { await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role}`); return tx.$executeRawUnsafe(sql); }), /permission denied|row-level security/i);
   });
+  it("imports the 10,000-row pilot limit in bounded batches", async () => {
+    const content = `${header}\n` + Array.from({ length: 10_000 }, (_, index) => `MAIN,LIMIT${index},Stock ${index},1,2026-10-20T17:00:00Z`).join("\n");
+    const draft = (await preview(content, [main])).preview!;
+    assert.equal(draft.rowCount, 10_000);
+    await apply(draft.id);
+    const inventory = await getBusinessInventory(client, owner.id, org, { locationId: main });
+    assert.equal(inventory.total, 10_000);
+    assert.equal(inventory.totals[0]._sum.quantityOnHand, 10_000);
+  });
 });

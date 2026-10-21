@@ -7,6 +7,7 @@ it("preserves intended private pages but rejects external and unexpected destina
   assert.equal(safeReturnTo("/business"), "/business");
   assert.equal(safeReturnTo("/business/join"), "/business/join");
   assert.equal(safeReturnTo("/business/org-123"), "/business/org-123");
+  assert.equal(safeReturnTo("/business/org-123/inventory"), "/business/org-123/inventory");
   assert.equal(safeReturnTo("/business/org-123/export"), "/");
   assert.equal(safeReturnTo("/purchases?q=milk"), "/purchases?q=milk");
   for (const value of ["//evil.example", "https://evil.example", "/\\evil.example", "/auth/callback", "/%2f%2fevil.example", "/add\n", null]) assert.equal(safeReturnTo(value), "/");

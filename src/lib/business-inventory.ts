@@ -5,7 +5,7 @@ import { inventoryStockKey, parseInventoryCsv, type InventoryIssue, type Invento
 
 type DraftStore = { id: string; code: string; name: string; baseSnapshotId: string | null; inventoryAsOf: string; rowCount: number; units: number; previousRows: number; previousUnits: number; removedRows: number };
 type Payload = { rows: InventoryRow[]; stores: DraftStore[] };
-export type InventoryPreview = { id: string; fileName: string; status: string; expiresAt: string; rows: InventoryRow[]; rowCount: number; page: number; pages: number; stores: DraftStore[] };
+export type InventoryPreview = { id: string; fileName: string; status: string; expiresAt: string; checkedAt: string; rows: InventoryRow[]; rowCount: number; page: number; pages: number; stores: DraftStore[] };
 export type InventoryPreviewResult = { preview?: InventoryPreview; issues: InventoryIssue[]; issueCount: number };
 export class InventoryError extends Error {}
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -19,7 +19,7 @@ export async function inventoryPreviewPage(client: PrismaClient, userId: string,
   const payload = JSON.parse(draft.payload) as Payload;
   const pages = Math.max(1, Math.ceil(payload.rows.length / PAGE_SIZE));
   const page = Math.min(pages, Math.max(1, Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1));
-  return { id: draft.id, fileName: draft.fileName, status: draft.status, expiresAt: draft.expiresAt.toISOString(), rows: payload.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), rowCount: payload.rows.length, page, pages, stores: payload.stores };
+  return { id: draft.id, fileName: draft.fileName, status: draft.status, expiresAt: draft.expiresAt.toISOString(), checkedAt: new Date().toISOString(), rows: payload.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), rowCount: payload.rows.length, page, pages, stores: payload.stores };
 }
 
 export async function previewInventoryCsv(client: PrismaClient, userId: string, organizationId: string, fileName: string, csv: string, selectedLocationIds: string[]): Promise<InventoryPreviewResult> {
@@ -106,5 +106,5 @@ export async function getBusinessInventory(client: PrismaClient, userId: string,
   const rows = await client.inventoryStockRow.findMany({ where, orderBy: [{ locationId: "asc" }, { sku: "asc" }, { id: "asc" }], take: 50, skip: (page - 1) * 50 });
   const totals = await client.inventoryStockRow.groupBy({ by: ["locationId"], where: { organizationId, snapshotId: { in: snapshotIds } }, _sum: { quantityOnHand: true }, _count: true });
   const history = membership.role !== "STAFF" ? await client.inventoryImport.findMany({ where: { organizationId, status: "APPLIED" }, select: { id: true, fileName: true, appliedAt: true }, orderBy: { appliedAt: "desc" }, take: 10 }) : [];
-  return { membership, locations, snapshots: current, rows, total, pages, page, totals, history };
+  return { membership, locations, snapshots: current, rows, total, pages, page, totals, history, checkedAt: new Date() };
 }

@@ -18,7 +18,10 @@ export type InventoryParseResult = { rows: InventoryRow[]; issues: InventoryIssu
 function records(input: string): { cells: string[]; line: number }[] {
   const result: { cells: string[]; line: number }[] = [];
   let cells: string[] = [], value = "", quoted = false, closed = false, line = 1, start = 1;
-  const field = () => { cells.push(value.trim()); value = ""; closed = false; };
+  const field = () => {
+    cells.push(value.trim()); value = ""; closed = false;
+    if (cells.length > inventoryRequiredHeaders.length + inventoryOptionalHeaders.length) throw new Error(`Line ${line}: too many columns. Use the template headers.`);
+  };
   const record = () => {
     field();
     if (cells.some(cell => cell.length)) result.push({ cells, line: start });
@@ -79,7 +82,7 @@ export function parseInventoryCsv(input: string, allowedLocationCodes: readonly 
   const known = new Set<string>([...inventoryRequiredHeaders, ...inventoryOptionalHeaders]);
   if (headers.length !== new Set(headers).size) issue(parsed[0].line, "headers", "Duplicate column names are not allowed.");
   for (const field of inventoryRequiredHeaders) if (!headers.includes(field)) issue(parsed[0].line, "headers", `Missing required column: ${field}.`);
-  for (const field of headers) if (!known.has(field)) issue(parsed[0].line, "headers", `Unknown column: ${field || "(blank)"}. Use the template headers.`);
+  for (const field of headers) if (!known.has(field)) issue(parsed[0].line, "headers", `Unknown column: ${field.slice(0, 80) || "(blank)"}. Use the template headers.`);
   if (result.issueCount) return result;
   if (parsed.length === 1) { issue(1, "file", "The CSV has no stock rows. Use explicit zero quantities for out-of-stock items; empty snapshots are not imported."); return result; }
   const allowed = new Set(allowedLocationCodes.map(code => code.toUpperCase()));
