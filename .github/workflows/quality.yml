@@ -43,6 +43,6 @@ jobs:
       - run: psql "$DATABASE_URL" -c 'CREATE ROLE anon; CREATE ROLE authenticated; GRANT USAGE ON SCHEMA public TO anon, authenticated;'
       - run: npm run db:hosted:generate
       - run: npm run db:hosted:deploy
-      - run: node --import tsx --test tests/household-isolation.test.ts
+      - run: node --import tsx --test --test-concurrency=1 tests/household-isolation.test.ts tests/business-isolation.test.ts
       - run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/hosted/schema.prisma --exit-code
       - run: npm run build:hosted

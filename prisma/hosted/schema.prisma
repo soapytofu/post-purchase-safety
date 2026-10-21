@@ -58,6 +58,65 @@ model AppUser {
   emailAlertsConsentedAt DateTime?
   unsubscribeToken String? @unique
   emailNotifications EmailNotification[]
+  businessMemberships BusinessMembership[]
+}
+
+enum BusinessRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+model Organization {
+  id String @id @default(cuid())
+  name String
+  createdAt DateTime @default(now())
+  authorizationVersion Int @default(0)
+  members BusinessMembership[]
+  locations BusinessLocation[]
+  invitations BusinessInvitation[]
+}
+
+model BusinessMembership {
+  id String @id @default(cuid())
+  organizationId String
+  userId String
+  email String
+  role BusinessRole @default(STAFF)
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model BusinessLocation {
+  id String @id @default(cuid())
+  organizationId String
+  code String
+  name String
+  address String @default("")
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+}
+
+model BusinessInvitation {
+  id String @id @default(cuid())
+  organizationId String
+  email String
+  role BusinessRole @default(STAFF)
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
 }
 
 model Household {
