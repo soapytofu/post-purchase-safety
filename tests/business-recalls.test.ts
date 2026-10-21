@@ -45,7 +45,12 @@ describe("read-only business recall inbox", () => {
     await upload(second, "SECOND", 3, "2026-10-19T10:00:00Z");
     await client.recall.createMany({ data: [false, true].map(isFixture => ({ externalId: `business-inbox-${isFixture}`, sourceAuthority: "FDA", headline: "Peanut butter recall", description: "Check the affected lots", productName: "Organic peanut butter", brand: "Acme", category: "Food", upcs: '["00012345678905"]', lotNumbers: '["A1"]', recallDate: new Date("2020-01-01"), recommendedAction: "Contact supplier", sourceUrl: "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts", isFixture })) });
   });
-  after(async () => { await client.$disconnect(); rmSync(directory, { recursive: true, force: true }); });
+  after(async () => {
+    // PostgreSQL suites share their disposable catalog. Remove only notices
+    // created here so consumer assertions don't depend on test file ordering.
+    await client.recall.deleteMany({ where: { sourceAuthority: "FDA", OR: ["business-inbox-", "business-extra-", "limit-notice-"].map(prefix => ({ externalId: { startsWith: prefix } })) } });
+    await client.$disconnect(); rmSync(directory, { recursive: true, force: true });
+  });
   it("matches current stock across stores, excludes fixtures, and does not modify household matches/emails", async () => {
     const before = await client.purchase.findMany({ where: { householdId: household } });
     const matches = await client.recallMatch.count(); const emails = await client.emailNotification.count();
