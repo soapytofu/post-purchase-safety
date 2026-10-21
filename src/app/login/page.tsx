@@ -7,7 +7,7 @@ import { localPilotAllowed } from "@/lib/auth";
 export default async function Login({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
   const returnTo = safeReturnTo(params.next);
-  const destination = returnTo === "/add" ? "add a purchase" : returnTo === "/purchases" ? "view your purchases" : returnTo === "/alerts" ? "view your household alerts" : returnTo === "/settings" ? "manage your household settings" : "open your household overview";
+  const destination = returnTo.startsWith("/business") ? "open your business workspace" : returnTo === "/add" ? "add a purchase" : returnTo === "/purchases" ? "view your purchases" : returnTo === "/alerts" ? "view your household alerts" : returnTo === "/settings" ? "manage your household settings" : "open your household overview";
   const ready = authConfigured() && (process.env.NODE_ENV !== "production" || hostedDatabaseConfigured());
   return <div className="page"><PageHeader eyebrow="Private household accounts" title="Your shelf. Your account." description="Sign in with a secure email link—no password to remember. Public recalls remain available without an account." />
     <section className="form-card" style={{ maxWidth: 560 }}>

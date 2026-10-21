@@ -9,7 +9,8 @@ export function hostedDatabaseConfigured() {
 export function safeReturnTo(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\s\u0000-\u001f]/.test(value)) return "/";
   const url = new URL(value, "https://internal.invalid");
-  if (url.origin !== "https://internal.invalid" || !["/", "/add", "/purchases", "/alerts", "/settings"].includes(url.pathname)) return "/";
+  const businessPath = /^\/business(?:\/[a-zA-Z0-9_-]{1,100})?$/.test(url.pathname);
+  if (url.origin !== "https://internal.invalid" || (!businessPath && !["/", "/add", "/purchases", "/alerts", "/settings"].includes(url.pathname))) return "/";
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
