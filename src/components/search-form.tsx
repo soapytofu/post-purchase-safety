@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { parseSearchHistory, rememberSearch, type RecentSearch } from "@/lib/search-history";
 
 export function SearchForm({ action, historyKey, defaultQuery, label, placeholder, children, className = "toolbar" }: {
-  action: "/purchases" | "/notices" | `/business/${string}/inventory`; historyKey: string; defaultQuery: string; label: string; placeholder: string; children: ReactNode; className?: string;
+  action: "/purchases" | "/notices" | `/business/${string}/inventory` | `/business/${string}/recalls`; historyKey: string; defaultQuery: string; label: string; placeholder: string; children: ReactNode; className?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();

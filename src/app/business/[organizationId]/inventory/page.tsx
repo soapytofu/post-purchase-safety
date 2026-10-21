@@ -24,7 +24,7 @@ export default async function Inventory({ params, searchParams }: { params: Prom
   const base = `/business/${organizationId}/inventory` as const;
   const href = (nextPage: number) => `${base}?${new URLSearchParams({ ...(filters.q ? { q: filters.q } : {}), ...(filters.location ? { location: filters.location } : {}), page: String(nextPage) })}`;
   return <div className="page"><PageHeader eyebrow={`Business inventory · ${membership.role.toLowerCase()}`} title={`${organization.name} inventory`} description="Stock quantities by store, based on confirmed CSV snapshots—not a live POS connection." action={<Link href={`/business/${organizationId}`}>Team & store settings</Link>} />
-    <p className="coverage-warning">Inventory is not yet matched to recalls. Continue checking official notices and your supplier channels. Older stock snapshots may not describe what is on shelves now.</p>
+    <p className="coverage-warning"><Link href={`/business/${organizationId}/recalls`}>Open recall inbox · review potential matches</Link>. Matching runs when the inbox is opened or refreshed; it is not background monitoring. Continue checking official notices and supplier channels. Older stock snapshots may not describe what is on shelves now.</p>
     {membership.role !== "STAFF" && <InventoryUpload organizationId={organizationId} locations={locations.filter(location => !location.archivedAt).map(({ id, name, code }) => ({ id, name, code }))} />}
     <section className="form-card"><h2>Stock by store</h2><div className="inventory-store-grid">{locations.filter(location => !filters.location || location.id === filters.location).map(location => {
       const snapshot = snapshots.find(item => item.locationId === location.id);

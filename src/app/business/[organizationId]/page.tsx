@@ -16,9 +16,10 @@ export default async function BusinessWorkspace({ params }: { params: Promise<{ 
   const { organization, membership, locations, members, invitations } = workspace;
   const owner = membership.role === "OWNER";
   const fields = (operation: string) => <><input type="hidden" name="organizationId" value={organizationId} /><input type="hidden" name="operation" value={operation} /></>;
-  return <div className="page"><PageHeader eyebrow={`Business workspace · ${membership.role.toLowerCase()}`} title={organization.name} description="Manage store locations, your team and CSV inventory snapshots. Recall matching is not active yet." action={<Link href="/business">Switch business</Link>} />
+  return <div className="page"><PageHeader eyebrow={`Business workspace · ${membership.role.toLowerCase()}`} title={organization.name} description="Manage store locations, your team and CSV inventory snapshots. Review potential recall matches by store." action={<Link href="/business">Switch business</Link>} />
     <p><Link className="button button-primary" href={`/business/${organizationId}/inventory`}>Open inventory · stock by store</Link></p>
-    <p className="coverage-warning">This workspace does not monitor stock yet. Continue using your existing recall and supplier channels.</p>
+    <p><Link className="button button-secondary" href={`/business/${organizationId}/recalls`}>Open recall inbox · potential matches</Link></p>
+    <p className="coverage-warning">The recall inbox evaluates current stock on demand—not continuous monitoring. Matches need verification; continue using your existing recall and supplier channels.</p>
     <section className="form-card"><h2>Store locations</h2><p>Owners manage locations. Managers and staff can view them. Archive a location to retain its history; codes cannot be reused.</p>
       {!locations.length && <p>No locations yet.{owner ? " Add your first store below." : " Ask the owner to add a location."}</p>}
       <div className="business-grid">{locations.map(location => <article className="business-location" key={location.id}><h3>{location.name}</h3><p><code>{location.code}</code> · {location.archivedAt ? "Archived" : "Active"}</p>{location.address && <p>{location.address}</p>}
