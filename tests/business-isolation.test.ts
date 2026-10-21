@@ -129,12 +129,17 @@ describe("business accounts, locations and real-database isolation", () => {
   });
 
   it("keeps PostgreSQL business tables inaccessible to browser-facing roles", { skip: !hostedUrl }, async () => {
+    const rls = await client.$queryRaw<{ relname: string; relrowsecurity: boolean }[]>`SELECT relname, relrowsecurity FROM pg_class WHERE relname IN ('Organization', 'BusinessMembership', 'BusinessLocation', 'BusinessInvitation') AND relnamespace = 'public'::regnamespace`;
+    assert.equal(rls.length, 4);
+    assert.ok(rls.every(row => row.relrowsecurity));
     for (const role of ["anon", "authenticated"]) {
       for (const table of ["Organization", "BusinessMembership", "BusinessLocation", "BusinessInvitation"]) {
-        await assert.rejects(client.$transaction(async tx => {
-          await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role}`);
-          return tx.$queryRawUnsafe(`SELECT * FROM "${table}"`);
-        }), /permission denied|row-level security/i);
+        for (const sql of [`SELECT * FROM "${table}"`, `INSERT INTO "${table}" DEFAULT VALUES`, `UPDATE "${table}" SET "id" = "id"`, `DELETE FROM "${table}"`]) {
+          await assert.rejects(client.$transaction(async tx => {
+            await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role}`);
+            return tx.$executeRawUnsafe(sql);
+          }), /permission denied|row-level security/i);
+        }
       }
     }
   });

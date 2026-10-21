@@ -24,6 +24,10 @@ Exit: founder records go/revise/stop against the discovery gate. Engineering pro
 
 ## Milestone 1 — isolated business workspace
 
+Implementation update (October 21, 2026): the separate business workspace, owner/manager/staff authorization, email-bound manual-share invitations, member role/removal controls, stable location codes, location edit/archive/restore, location exports and household/business navigation are implemented. Isolation tests run against disposable SQLite and PostgreSQL databases. Browser flows were exercised using synthetic identities and a local test-auth service, not real Supabase sign-in. Business inventory/recall monitoring is not active. Apply the additive hosted migration and complete real-account staging checks before external pilot use; no hosted migration was applied during implementation.
+
+Invitations are single-use, hashed at rest and expire after seven days. Owners share the generated link privately; this milestone does not send invitation emails or support owner transfer. Managers can view/export locations; staff can view them. Only owners manage the team and locations. Archived locations retain their codes; there is no hard-delete UI.
+
 **B1.1 — Organization authorization.** Introduce separate organization/membership/location domain records and server-side authorization. Do not change household ownership or make household membership confer business access.
 
 Acceptance:

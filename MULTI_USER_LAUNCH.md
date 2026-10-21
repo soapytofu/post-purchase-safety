@@ -61,6 +61,18 @@ Add bounded imports/queues and incremental matching, per-account and IP abuse li
 
 Run a 25–50-household, 4–6-week pilot. Measure first successful import, weekly active households, time to review an actionable alert, match usefulness/false positives, source lag, failed imports and willingness to pay. Interview people who stop using it. Treat coverage and “none found” as limitations, not safety assurances. Add billing only after evidence of repeated value.
 
+## Business workspace activation (October 21, 2026)
+
+The business foundation is additive and separate from household membership. It requires migration `202610210001_business_workspace`. The implementation was tested in disposable local databases; staging/production data has not been migrated as part of this change.
+
+1. Confirm the intended staging project/connection and its backup/restore arrangements. Do not run local seeding or `db:push` against hosted data.
+2. Run the existing hosted generate/deploy workflow with staging credentials kept private, then rebuild/restart the app. The migration adds four server-only tables, a role enum, foreign keys/indexes, RLS and revoked browser-role grants; it does not modify household/purchase rows. Validate migration status and schema drift before proceeding.
+3. With two consented real accounts, open `/business`, create separate businesses and locations, and verify neither can see/export/change the other’s records. Test a guessed organization/location ID and a signed-out request. Confirm household purchases/export remain unchanged.
+4. Invite a third account as staff using its exact verified email. Share the link privately; no email is sent. Test incorrect email, expiry, revocation, replay, role changes and removal. Managers may export locations, staff may not; only owners may manage team/locations.
+5. Verify archive/restore and stable location codes, and check that all four tables reject direct Data API access. Do not enable inventory monitoring or advertise a live safety service: those features are not part of this milestone.
+
+Workspace selection is explicit navigation, not a trusted client-side tenant cookie. Every private operation rechecks database membership from a server-verified identity. The local pilot bypass never grants business access. See `docs/BUSINESS_PILOT_BACKLOG.md` for the next inventory milestone.
+
 ## Reference documentation
 
 - Supabase SSR setup: https://supabase.com/docs/guides/auth/server-side/creating-a-client
