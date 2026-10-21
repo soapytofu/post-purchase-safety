@@ -75,6 +75,7 @@ model Organization {
   members BusinessMembership[]
   locations BusinessLocation[]
   invitations BusinessInvitation[]
+  inventoryImports InventoryImport[]
 }
 
 model BusinessMembership {
@@ -100,8 +101,75 @@ model BusinessLocation {
   archivedAt DateTime?
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentSnapshotId String? @unique
+  currentSnapshot InventorySnapshot? @relation("CurrentInventory", fields: [currentSnapshotId], references: [id], onDelete: Restrict)
+  snapshots InventorySnapshot[] @relation("LocationInventory")
 
   @@unique([organizationId, code])
+  @@unique([id, organizationId])
+}
+
+model InventoryImport {
+  id String @id @default(cuid())
+  organizationId String
+  createdById String
+  fileName String
+  contentHash String
+  appliedHash String?
+  status String @default("DRAFT")
+  payload String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  appliedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  snapshots InventorySnapshot[]
+
+  @@index([organizationId, createdById, contentHash])
+  @@unique([organizationId, appliedHash])
+  @@unique([id, organizationId])
+  @@index([organizationId, createdAt])
+}
+
+model InventorySnapshot {
+  id String @id @default(cuid())
+  organizationId String
+  locationId String
+  importId String
+  inventoryAsOf DateTime
+  createdAt DateTime @default(now())
+  location BusinessLocation @relation("LocationInventory", fields: [locationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  currentFor BusinessLocation? @relation("CurrentInventory")
+  import InventoryImport @relation(fields: [importId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  rows InventoryStockRow[]
+
+  @@unique([id, locationId, organizationId])
+  @@index([locationId, organizationId])
+  @@index([importId, organizationId])
+}
+
+model InventoryStockRow {
+  id String @id @default(cuid())
+  organizationId String
+  locationId String
+  snapshotId String
+  stockKey String
+  sku String
+  productName String
+  quantityOnHand Int
+  brand String @default("")
+  gtin String @default("")
+  manufacturer String @default("")
+  modelNumber String @default("")
+  lotNumber String @default("")
+  serialNumber String @default("")
+  productionDate String @default("")
+  supplier String @default("")
+  category String @default("")
+  snapshot InventorySnapshot @relation(fields: [snapshotId, locationId, organizationId], references: [id, locationId, organizationId], onDelete: Restrict)
+
+  @@unique([snapshotId, stockKey])
+  @@index([organizationId, locationId])
+  @@index([snapshotId, locationId, organizationId])
 }
 
 model BusinessInvitation {

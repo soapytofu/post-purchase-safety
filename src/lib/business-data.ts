@@ -25,13 +25,13 @@ export async function membershipFor(client: Reader, verifiedUserId: string, orga
 
 // Serialize mutations with membership changes. Recheck authorization after taking
 // the organization lock, so an in-flight action cannot use a revoked role.
-async function authorizedWrite<T>(client: PrismaClient, userId: string, organizationId: string, roles: readonly BusinessRole[], work: (tx: Prisma.TransactionClient) => Promise<T>) {
+export async function authorizedBusinessWrite<T>(client: PrismaClient, userId: string, organizationId: string, roles: readonly BusinessRole[], work: (tx: Prisma.TransactionClient) => Promise<T>) {
   return client.$transaction(async tx => {
     await membershipFor(tx, userId, organizationId, roles);
     await tx.organization.update({ where: { id: organizationId }, data: { authorizationVersion: { increment: 1 } } });
     await membershipFor(tx, userId, organizationId, roles);
     return work(tx);
-  });
+  }, { timeout: 30_000 });
 }
 
 export async function createOrganization(client: PrismaClient, identity: BusinessIdentity, name: string) {
@@ -54,7 +54,7 @@ export async function getBusinessWorkspace(client: Reader, userId: string, organ
 
 export async function saveLocation(client: PrismaClient, userId: string, organizationId: string, value: unknown, locationId?: string) {
   const data = locationInput.parse(value);
-  return authorizedWrite(client, userId, organizationId, ["OWNER"], async tx => {
+  return authorizedBusinessWrite(client, userId, organizationId, ["OWNER"], async tx => {
     if (!locationId) return tx.businessLocation.create({ data: { ...data, organizationId } });
     // Codes are stable inventory references; change the display name/address only.
     const result = await tx.businessLocation.updateMany({ where: { id: locationId, organizationId, code: data.code, archivedAt: null }, data: { name: data.name, address: data.address } });
@@ -64,7 +64,7 @@ export async function saveLocation(client: PrismaClient, userId: string, organiz
 }
 
 export async function setLocationArchived(client: PrismaClient, userId: string, organizationId: string, locationId: string, archived: boolean) {
-  return authorizedWrite(client, userId, organizationId, ["OWNER"], async tx => {
+  return authorizedBusinessWrite(client, userId, organizationId, ["OWNER"], async tx => {
     const result = await tx.businessLocation.updateMany({ where: { id: locationId, organizationId }, data: { archivedAt: archived ? new Date() : null } });
     if (result.count !== 1) throw new BusinessAccessError();
   });
@@ -73,7 +73,7 @@ export async function setLocationArchived(client: PrismaClient, userId: string, 
 export async function inviteBusinessMember(client: PrismaClient, userId: string, organizationId: string, input: unknown) {
   const data = inviteInput.parse(input);
   const token = randomBytes(32).toString("hex");
-  return authorizedWrite(client, userId, organizationId, ["OWNER"], async tx => {
+  return authorizedBusinessWrite(client, userId, organizationId, ["OWNER"], async tx => {
     const alreadyMember = await tx.businessMembership.findFirst({ where: { organizationId, email: data.email } });
     if (alreadyMember) throw new Error("This email is already a member of this business.");
     await tx.businessInvitation.updateMany({ where: { organizationId, email: data.email, usedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
@@ -98,7 +98,7 @@ export async function acceptBusinessInvitation(client: PrismaClient, identity: B
 }
 
 export async function revokeBusinessInvitation(client: PrismaClient, userId: string, organizationId: string, invitationId: string) {
-  return authorizedWrite(client, userId, organizationId, ["OWNER"], async tx => {
+  return authorizedBusinessWrite(client, userId, organizationId, ["OWNER"], async tx => {
     const result = await tx.businessInvitation.updateMany({ where: { id: invitationId, organizationId, usedAt: null }, data: { revokedAt: new Date() } });
     if (result.count !== 1) throw new BusinessAccessError();
   });
@@ -106,7 +106,7 @@ export async function revokeBusinessInvitation(client: PrismaClient, userId: str
 
 export async function changeBusinessMember(client: PrismaClient, userId: string, organizationId: string, membershipId: string, role: "MANAGER" | "STAFF" | "REMOVE") {
   if (!["MANAGER", "STAFF", "REMOVE"].includes(role)) throw new BusinessAccessError();
-  return authorizedWrite(client, userId, organizationId, ["OWNER"], async tx => {
+  return authorizedBusinessWrite(client, userId, organizationId, ["OWNER"], async tx => {
     const where = { id: membershipId, organizationId, role: { not: BusinessRole.OWNER } };
     const member = await tx.businessMembership.findFirst({ where });
     if (!member) throw new BusinessAccessError();
