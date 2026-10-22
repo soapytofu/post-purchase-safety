@@ -93,11 +93,36 @@ From a business workspace or inventory page, open **Recall inbox**. Owner, manag
 
 The inbox compares current positive-quantity stock in active stores with synchronized non-demo notices of all dates. Identifier candidates use canonical GTIN padding; textual candidates require multiple shared name terms. Matching brand/lot evidence and conflicting identifiers/brands/lots are displayed without treating a candidate as confirmed affected. Missing brands are not guessed. Model, serial-range and production-date restrictions are not automatically verified, and inventory timestamps are not matched to distribution windows. Compare packaging and supplier evidence with the full official notice before making an affected-stock determination.
 
-Search, store/evidence filters, pagination, deduplicated stock-unit totals, per-store stale/missing inventory and source-health details are provided. Opening or refreshing recomputes from current data; it does not run continuously or send alerts. There are no saved review states, immutable notice revisions, case history, assignments or removal quantities yet. Missing results are explicitly not an all-clear.
+Search, store/evidence filters, pagination, deduplicated stock-unit totals, per-store stale/missing inventory and source-health details are provided. Opening or refreshing recomputes from current data; it does not run continuously or send alerts. Saved cases, notice revisions and review history were added in the October 22 milestone below; assignments and removal quantities remain pending. Missing results are explicitly not an all-clear.
 
 Interactive limits: 20,000 positive-stock rows, 10,000 synchronized notices and 200,000 candidate comparisons per view. Workload overflow, malformed notice identifier arrays and inconsistent snapshot references fail with an unavailable state, not partial/empty success. A queued evaluator and real partner benchmark are required for larger workloads or monitoring claims. Direct Data API permissions and RLS remain unchanged. All reads enforce membership and scoped current snapshots, with a fresh authorization check before returning results.
 
 Verification: the complete SQLite regression run passed 99 tests (five PostgreSQL-only checks skipped); the PostgreSQL run passed all 32 household/business/inventory/inbox checks with none skipped. Synthetic browser checks passed for quantities across two stores, duplicate-notice unit totals, evidence/conflicts, filters/pagination, zero-stock snapshot replacement, staff/nonmember/signed-out access and 320/390/1440px layouts. Tests used disposable local databases and a local synthetic-auth service, not real Supabase accounts or staging fixture uploads. Complete real-account acceptance before partner enrollment.
+
+### Saved cases and notice history (October 22, 2026)
+
+From the recall inbox, an owner or manager chooses **Save recall case**, then **Open saved case**. The separate **Saved recall cases** list includes review-status/store filters and archived stores. Staff have read-only access. Saving does not change household purchases, consumer matches or email preferences.
+
+Each case retains numbered evidence observations with the stock snapshot and store name as captured, source content version, matching reasons/conflicts and algorithm version. New stock for the same store/stock-key/notice attaches to the existing case when explicitly saved. The detail page links each activity event to the evidence used. Historical evidence cannot be reviewed as though it were latest evidence. Inventory older than 24 hours and stale/incomplete source coverage are visibly flagged.
+
+Owners/managers record **Needs review**, **Confirmed affected** or **Not affected**, with a reason; a decided state requires explicit official-notice/stock verification. A confirmed quantity must be between one and the saved snapshot quantity. These are review decisions, not shelf-removal/completion records. Case notes append without changing the decision. The complete JSON export includes private notes, all observations, notice versions and activity; staff/nonmembers cannot export. Limits are 500 observations, 500 source versions, 2,000 events and 10 MiB; larger cases return an explicit error, never an incomplete report. Exports are operational records, not regulatory certification.
+
+Source synchronization now captures earlier and updated content transactionally. Any content change conservatively reopens decided cases. A subsequent **Capture latest notice evidence** compares the latest synchronized catalog version with the last saved stock; it does not fetch the authority or import new inventory. Source disappearance never closes a case. Version checks reject stale-tab decisions; PostgreSQL triggers block updates/deletes to notice versions, observations and activity. No automatic cleanup is enabled: agree retention/deletion/restore procedures before real partner enrollment.
+
+Migration `202610220001_saved_recall_cases` added five server-only tables and supporting constraints/indexes. It was applied to staging after local PostgreSQL verification; all fifteen existing application-table fingerprints remained unchanged. RLS is enabled and browser API-role grants are revoked. The household still has six purchases. A baseline captured 952 existing notices as 952 versions; no live source sync, household rematch or test business insertion ran against staging.
+
+For a fresh environment, apply the normal hosted migrations first, then optionally capture existing catalog content:
+
+```bash
+# Credentials remain in your private environment file. Default is a dry run.
+node --env-file=.env.staging --import tsx scripts/backfill-notice-history.ts
+node --env-file=.env.staging --import tsx scripts/backfill-notice-history.ts --apply
+npm run benchmark:business
+```
+
+Baseline capture processes 100 notices per transaction and is resumable/idempotent for unchanged content. It does not fetch sources, regenerate household matches, send emails or change inventory. It cannot recover historical versions from before the first observation. The 24-pair matching benchmark is explicitly synthetic; its known misses/false positives are listed in the output and do not establish real-world safety accuracy.
+
+Acceptance: use two consented real accounts to save/review cases in separate businesses, check staff restrictions, save replacement stock to the same case, export the evidence, and verify household purchases are unchanged. Synthetic browser tests exercise this separately with loopback-only fake auth and a disposable database; they do not validate real email-link delivery. Background matching, business email, assignments, removed-unit accounting and explicit official closure remain future milestones.
 
 ## Reference documentation
 

@@ -1,12 +1,12 @@
 # SafeKeep Business — staged implementation backlog
 
-October 10, 2026 · Staged plan; implementation status updated October 21, 2026.
+October 10, 2026 · Staged plan; implementation status updated October 22, 2026.
 
 Source of scope: [pilot specification](BUSINESS_PILOT_SPEC.md). Discovery method: [retailer interview guide](RETAILER_INTERVIEW_GUIDE.md).
 
 ## Current foundation and boundaries
 
-Existing code provides household-scoped purchases, public notices, provider health, receipt/manual/CSV capture, deterministic matching and an opt-in email integration. Business membership and inventory snapshots are now implemented separately. Durable-product model/serial matching, immutable notice revisions and response cases remain new work.
+Existing code provides household-scoped purchases, public notices, provider health, receipt/manual/CSV capture, deterministic matching and an opt-in email integration. Business membership, inventory snapshots, saved review cases and immutable notice versions are implemented separately. Durable-product model/serial matching, background business evaluation and operational response tasks remain new work.
 
 The latest review added search/category consistency, receipt identifier review and safer UI behavior. It did not establish production source completeness, real email delivery, enterprise security or a business pilot. Existing launch checklists remain applicable; historical unchecked items should be independently re-verified rather than presumed completed.
 
@@ -63,9 +63,17 @@ Exit: synthetic and approved redacted exports produce expected counts; repeated 
 
 ## Milestone 3 — versioned evidence and exposure cases
 
+Saved-case slice (October 22, 2026): owners/managers explicitly save an inbox candidate as one case per organization, store, stock key and authoritative notice. Each observation pins the inventory row, a copy of its quantities/identifiers/store name, the notice version and matching reasons/conflicts/algorithm. Repeated saves are idempotent; new inventory attaches another observation to the same case. Staff can read but cannot save, review, add notes or export. Case/activity/history screens are paginated and tenant scoped. Historical evidence survives renamed/archived stores, replacement imports and source-catalog pruning.
+
+Source synchronization captures immutable versions in the same transaction as catalog changes. Unchanged canonical content does not create another revision. Any captured content change conservatively reopens a decided case; material-versus-cosmetic classification is not yet implemented. There are no business emails, so this does not send repeated notifications. Decisions require a reason and explicit source/stock verification; confirmed quantities must fit the saved snapshot. Concurrent stale decisions are rejected. Notes append without changing decisions. JSON exports include the complete saved case, observations, source versions and activity; they reject oversized histories rather than truncate them. PostgreSQL triggers prevent edits/deletion of evidence, versions and activity. Automatic retention is deliberately not enabled.
+
+Migration `202610220001_saved_recall_cases` is applied to staging. All fifteen pre-existing table fingerprints were unchanged; 952 current notices were captured as baseline version 1 without source fetching or household rematching. History cannot reconstruct edits that occurred before first observation. This completes the initial saved-evidence/review portions of B3.1/B3.4/B4.1/B4.3, not official withdrawal handling, assignments/removal accounting or queued evaluation.
+
+`npm run benchmark:business` runs 24 authored synthetic pairs: 14 relevant product-identity pairs, six unrelated controls and four uncertain pairs. Baseline retrieval finds 12/14 relevant products and flags 1/6 unrelated products (92.3% precision, 85.7% recall on the definite labels). Known misses are abbreviated descriptions and genuine one-word names; the known false positive is a generic name shared by distinct brands. Lot-range scope is not interpreted. These are regression examples, not actual recalls, representative partner inventory or validated safety accuracy. Permissioned, independently labeled pilot data is still required.
+
 Initial matching slice (October 21, 2026): `/business/:organizationId/recalls` is a read-only, on-demand inbox. All business roles can compare nonzero stock from active stores' current snapshots with synchronized non-fixture notices of all dates. It shows product/SKU, store, snapshot quantity, identifier or multi-term text evidence, lot/brand/identifier conflicts, official links, stale stock and source gaps. Location/evidence/search filters and 20-pair pagination are supported; summary units deduplicate stock rows across notices. No result is labeled confirmed affected or all safe. No household match, email, stock or source row is written by evaluation. No new schema migration is needed for this read-only slice.
 
-The business matcher is separate from the consumer algorithm (`business-candidates-v1`). It canonicalizes GTIN padding, uses multi-term product names for textual candidates and never treats a store SKU as a barcode or inventory-as-of as a purchase/manufacture date. Model/serial/production-date restrictions are not automatically verified. This is not completion of B3.1–B3.4: notice revisions, persistent snapshot-pinned cases, review/closure/reopening, background jobs, notifications and a permissioned benchmark remain outstanding. Results are recalculated on refresh and can change with stock/notices; they are not an audit trail.
+The business matcher is separate from the consumer algorithm (`business-candidates-v1`). It canonicalizes GTIN padding, uses multi-term product names for textual candidates and never treats a store SKU as a barcode or inventory-as-of as a purchase/manufacture date. Model/serial/production-date restrictions are not automatically verified. The October 22 slice adds saved evidence and review/reopening; official closure, background jobs, notifications and a permissioned benchmark remain outstanding. Unsaved inbox results still recalculate on refresh and are not an audit trail.
 
 Interactive evaluation is bounded at 20,000 positive-stock rows, 10,000 notices and 200,000 candidate comparisons. Exceeding a limit, malformed notice identifier data or an inconsistent current-snapshot reference yields an explicit unavailable/error state, never silently truncated results. Large or broad catalogs need queued evaluation before pilot expansion. Existing RLS/grants are unchanged; server-side membership and organization/location/snapshot predicates enforce isolation, with membership rechecked before returning results.
 

@@ -32,6 +32,8 @@ The proposed multi-source product direction—including food and durable-product
 
 The app now includes a multi-user foundation: verified email-link accounts, household-scoped reads/writes/export/deletion, and a PostgreSQL migration profile. Hosted services are not connected by default. See [MULTI_USER_LAUNCH.md](./MULTI_USER_LAUNCH.md) for setup, acceptance tests and remaining launch gates.
 
+The separate business workspace supports organizations/roles, store locations, validated CSV stock snapshots, an on-demand recall inbox, and saved review cases with immutable notice/evidence history. Owners/managers can record decisions and notes and export a complete case record; staff can read. It is not continuous monitoring, and a review decision does not prove stock was removed. Run `npm run benchmark:business` for the small, explicitly synthetic retrieval benchmark and its known misses. See the [business backlog](./docs/BUSINESS_PILOT_BACKLOG.md) for implemented scope and remaining pilot gates.
+
 ## Setup
 
 Requirements: Node.js 22.14+ and npm.
