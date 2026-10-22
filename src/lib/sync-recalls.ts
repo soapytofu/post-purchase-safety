@@ -2,8 +2,10 @@ import type { RecallProvider } from "@/providers/recall-provider";
 import { prisma } from "@/lib/prisma";
 import { regenerateMatches } from "@/lib/match-service";
 import { assertTrustedSourceUrl } from "@/lib/source-url";
+import { Prisma, type PrismaClient, type Recall } from "@prisma/client";
+import { recordNoticeBatch } from "@/lib/notice-history";
 
-export async function syncRecallProvider(provider: RecallProvider) {
+export async function syncRecallProvider(provider: RecallProvider, client: PrismaClient = prisma) {
   const attemptedAt = new Date();
   try {
     const fetched = await provider.fetchRecalls();
@@ -16,7 +18,16 @@ export async function syncRecallProvider(provider: RecallProvider) {
       throw new Error(`${provider.name} mixed live and demo records in one snapshot`);
     }
 
-    await prisma.$transaction(async (tx) => {
+    await client.$transaction(async (tx) => {
+      // Serialize refreshes of the same provider; history and catalog commit
+      // together. Acquire catalog locks before history locks (also used by cases).
+      await tx.syncState.upsert({ where: { id: provider.name }, create: { id: provider.name, provider: provider.name, syncedAt: new Date(0), recordCount: 0 }, update: { lastAttemptAt: attemptedAt } });
+      const authorities = [...new Set([...(provider.managedAuthorities ?? []), ...recalls.map(recall => recall.sourceAuthority)])];
+      if (/^postgres(?:ql)?:/.test(process.env.DATABASE_URL ?? "")) await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Recall" WHERE "sourceAuthority" IN (${Prisma.join(authorities)}) ORDER BY "id" FOR UPDATE`);
+      // Preserve source observations before the consumer catalog is updated or
+      // pruned. History has no cascade from that replaceable catalog.
+      const previous = snapshotIsFixture ? [] : await tx.recall.findMany({ where: { sourceAuthority: { in: authorities }, isFixture: false } });
+      await recordNoticeBatch(tx, previous, "BEFORE_SYNC");
       if (result.replaceSnapshot && provider.managedAuthorities?.length) {
         await tx.recall.deleteMany({
           where: {
@@ -26,14 +37,16 @@ export async function syncRecallProvider(provider: RecallProvider) {
           },
         });
       }
+      const synchronized: Recall[] = [];
       for (const recall of recalls) {
         const data = { ...recall, upcs: JSON.stringify(recall.upcs), lotNumbers: JSON.stringify(recall.lotNumbers), rawData: JSON.stringify(recall.rawData ?? {}), isFixture: recall.isFixture ?? false };
-        await tx.recall.upsert({
+        synchronized.push(await tx.recall.upsert({
           where: { sourceAuthority_externalId: { sourceAuthority: recall.sourceAuthority, externalId: recall.externalId } },
           create: data,
           update: data,
-        });
+        }));
       }
+      await recordNoticeBatch(tx, synchronized, "SYNC");
       await regenerateMatches(tx);
       await tx.syncState.upsert({
         where: { id: provider.name },
@@ -44,7 +57,7 @@ export async function syncRecallProvider(provider: RecallProvider) {
     return recalls.length;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown provider error";
-    await prisma.syncState.upsert({
+    await client.syncState.upsert({
       where: { id: provider.name },
       create: { id: provider.name, provider: provider.name, syncedAt: new Date(0), lastAttemptAt: attemptedAt, status: "FAILED", errorMessage: message.slice(0, 500), recordCount: 0 },
       update: { lastAttemptAt: attemptedAt, status: "FAILED", errorMessage: message.slice(0, 500) },
