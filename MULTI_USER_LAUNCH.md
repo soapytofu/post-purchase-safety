@@ -126,6 +126,12 @@ Acceptance: use two consented real accounts to save/review cases in separate bus
 
 The repeatable browser command is `npm run test:business-ui`. First generate the hosted Prisma client, apply migrations to a disposable local database named `safekeep_test`, install Chromium with `npx playwright install chromium`, and set `TEST_DATABASE_URL` to that loopback database. The script refuses remote or differently named databases, creates synthetic fixtures, and starts its own temporary loopback app/auth servers. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` only if using an already installed browser. Screenshots go to the ignored `.test-artifacts/business-cases` directory. The PostgreSQL CI job runs this command and uploads its synthetic screenshots. It tests rejected-draft preservation, save/review/note/export, revised notices, historical evidence, role isolation and 320/390/1440px layouts.
 
+### Dependency review (October 22, 2026)
+
+Updated Next.js and `eslint-config-next` to 16.4.2, with locked `sharp` 0.35.5 and `source-map-js` 1.2.2. `npm audit --omit=dev` reports zero production dependency advisories after the update. This addresses the published Next.js [image optimization](https://github.com/advisories/GHSA-2464-fhr4-w9xw), [Server Actions](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) and [typed-array cache](https://github.com/advisories/GHSA-673q-mjm6-r5xr) advisories; it is not proof that every security issue has been eliminated.
+
+Full development audit still reports five affected dependency nodes from one unpatched [`braces` advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) in the Next ESLint → fast-glob → micromatch chain. It is absent from production dependencies. No forced downgrade of the framework’s lint configuration or unreviewed package substitution was applied. Revisit when an upstream patch is available; run lint only on trusted workspaces. CI uses Node 22.14; the local machine currently has Node 22.11 and emits a development-tool engine warning, so use the documented Node 22.14+ baseline for fresh installations.
+
 ## Reference documentation
 
 - Supabase SSR setup: https://supabase.com/docs/guides/auth/server-side/creating-a-client
