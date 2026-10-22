@@ -124,6 +124,8 @@ Baseline capture processes 100 notices per transaction and is resumable/idempote
 
 Acceptance: use two consented real accounts to save/review cases in separate businesses, check staff restrictions, save replacement stock to the same case, export the evidence, and verify household purchases are unchanged. Synthetic browser tests exercise this separately with loopback-only fake auth and a disposable database; they do not validate real email-link delivery. Background matching, business email, assignments, removed-unit accounting and explicit official closure remain future milestones.
 
+The repeatable browser command is `npm run test:business-ui`. First generate the hosted Prisma client, apply migrations to a disposable local database named `safekeep_test`, install Chromium with `npx playwright install chromium`, and set `TEST_DATABASE_URL` to that loopback database. The script refuses remote or differently named databases, creates synthetic fixtures, and starts its own temporary loopback app/auth servers. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` only if using an already installed browser. Screenshots go to the ignored `.test-artifacts/business-cases` directory. The PostgreSQL CI job runs this command and uploads its synthetic screenshots. It tests rejected-draft preservation, save/review/note/export, revised notices, historical evidence, role isolation and 320/390/1440px layouts.
+
 ## Reference documentation
 
 - Supabase SSR setup: https://supabase.com/docs/guides/auth/server-side/creating-a-client
