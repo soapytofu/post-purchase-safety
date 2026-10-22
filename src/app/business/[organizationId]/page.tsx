@@ -19,6 +19,7 @@ export default async function BusinessWorkspace({ params }: { params: Promise<{ 
   return <div className="page"><PageHeader eyebrow={`Business workspace · ${membership.role.toLowerCase()}`} title={organization.name} description="Manage store locations, your team and CSV inventory snapshots. Review potential recall matches by store." action={<Link href="/business">Switch business</Link>} />
     <p><Link className="button button-primary" href={`/business/${organizationId}/inventory`}>Open inventory · stock by store</Link></p>
     <p><Link className="button button-secondary" href={`/business/${organizationId}/recalls`}>Open recall inbox · potential matches</Link></p>
+    <p><Link className="button button-secondary" href={`/business/${organizationId}/cases`}>Saved recall cases · decisions and history</Link></p>
     <p className="coverage-warning">The recall inbox evaluates current stock on demand—not continuous monitoring. Matches need verification; continue using your existing recall and supplier channels.</p>
     <section className="form-card"><h2>Store locations</h2><p>Owners manage locations. Managers and staff can view them. Archive a location to retain its history; codes cannot be reused.</p>
       {!locations.length && <p>No locations yet.{owner ? " Add your first store below." : " Ask the owner to add a location."}</p>}

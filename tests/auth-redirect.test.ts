@@ -9,6 +9,9 @@ it("preserves intended private pages but rejects external and unexpected destina
   assert.equal(safeReturnTo("/business/org-123"), "/business/org-123");
   assert.equal(safeReturnTo("/business/org-123/inventory"), "/business/org-123/inventory");
   assert.equal(safeReturnTo("/business/org-123/recalls"), "/business/org-123/recalls");
+  assert.equal(safeReturnTo("/business/org-123/cases"), "/business/org-123/cases");
+  assert.equal(safeReturnTo("/business/org-123/cases/case-456?history=2"), "/business/org-123/cases/case-456?history=2");
+  assert.equal(safeReturnTo("/business/org-123/cases/case-456/export"), "/");
   assert.equal(safeReturnTo("/business/org-123/recalls/export"), "/");
   assert.equal(safeReturnTo("/business/org-123/export"), "/");
   assert.equal(safeReturnTo("/purchases?q=milk"), "/purchases?q=milk");
