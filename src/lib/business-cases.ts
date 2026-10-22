@@ -3,6 +3,7 @@ import { z } from "zod";
 import { BUSINESS_MATCH_VERSION, matchBusinessStock, type BusinessEvidence } from "@/domain/matching/business";
 import { authorizedBusinessWrite, BusinessAccessError, membershipFor } from "./business-data";
 import { noticeContent, noticeSnapshot, recordNoticeRevision, type NoticeSnapshot } from "./notice-history";
+import { sourceHealth } from "./source-health";
 
 export class BusinessCaseError extends Error {}
 export const caseStatuses = ["NEEDS_REVIEW", "CONFIRMED_AFFECTED", "NOT_AFFECTED"] as const;
@@ -110,6 +111,7 @@ export async function listBusinessCases(client: PrismaClient, userId: string, or
 }
 
 export async function getBusinessCase(client: PrismaClient, userId: string, organizationId: string, caseId: string, options: { observationId?: string; eventPage?: number; revisionPage?: number } = {}) {
+  const result = await client.$transaction(async client => {
   await membershipFor(client, userId, organizationId);
   const item = await client.businessRecallCase.findFirst({ where: { id: caseId, organizationId }, include: { location: true, noticeHistory: true } });
   if (!item) throw new BusinessAccessError();
@@ -119,13 +121,57 @@ export async function getBusinessCase(client: PrismaClient, userId: string, orga
   const eventCount = await client.businessCaseEvent.count({ where: { caseId, organizationId } });
   const pages = (count: number, requested = 1) => { const total = Math.max(1, Math.ceil(count / 20)); return { pages: total, page: Math.min(total, Math.max(1, Number.isFinite(requested) ? Math.floor(requested) : 1)) }; };
   const activity = pages(eventCount, options.eventPage), history = pages(item.noticeHistory.revisionCount, options.revisionPage);
-  const [events, revisions, currentNotice] = await Promise.all([
+  const [events, revisions, currentNotice, states] = await Promise.all([
     client.businessCaseEvent.findMany({ where: { caseId, organizationId }, orderBy: { version: "desc" }, take: 20, skip: (activity.page - 1) * 20 }),
     client.noticeRevision.findMany({ where: { historyId: item.noticeHistoryId }, orderBy: { number: "desc" }, take: 20, skip: (history.page - 1) * 20 }),
     client.recall.findFirst({ where: { sourceAuthority: item.noticeHistory.sourceAuthority, externalId: item.noticeHistory.externalId, isFixture: false } }),
+    client.syncState.findMany(),
   ]);
   let currentNoticeChanged = false, catalogInvalid = false;
   if (currentNotice) { try { currentNoticeChanged = noticeContent(currentNotice).contentHash !== latest.noticeRevision.contentHash; } catch { catalogInvalid = true; } }
   const membership = await membershipFor(client, userId, organizationId);
-  return { item, membership, latest, observation, stock: JSON.parse(observation.stockEvidence) as StockEvidence, notice: JSON.parse(observation.noticeRevision.payload) as NoticeSnapshot, evidence: JSON.parse(observation.evidence) as BusinessEvidence, events, revisions, activity, history, currentNoticeChanged, catalogInvalid, catalogMissing: !currentNotice, checkedAt: new Date() };
+  const provider = ({ FDA: "openfda-food-enforcement", "FDA / openFDA": "openfda-food-enforcement", "USDA FSIS": "usda-fsis-recalls", CPSC: "cpsc-recalls" } as Record<string, string>)[item.noticeHistory.sourceAuthority];
+  return { item, membership, latest, observation, stock: JSON.parse(observation.stockEvidence) as StockEvidence, notice: JSON.parse(observation.noticeRevision.payload) as NoticeSnapshot, evidence: JSON.parse(observation.evidence) as BusinessEvidence, events, revisions, activity, history, currentNoticeChanged, catalogInvalid, catalogMissing: !currentNotice, sourceCoverage: sourceHealth(states).sources.find(source => source.provider === provider), checkedAt: new Date() };
+  }, { timeout: 15_000, isolationLevel: (pg() ? "RepeatableRead" : "Serializable") as Prisma.TransactionIsolationLevel });
+  const membership = await membershipFor(client, userId, organizationId);
+  return { ...result, membership };
+}
+
+const noteInput = z.object({ caseId: z.string().min(1).max(100), expectedVersion: z.number().int().positive(), note: z.string().trim().min(3).max(2000) });
+export async function addBusinessCaseNote(client: PrismaClient, userId: string, organizationId: string, value: unknown) {
+  const input = noteInput.parse(value);
+  return authorizedBusinessWrite(client, userId, organizationId, roles, async tx => {
+    const updated = await tx.businessRecallCase.updateMany({ where: { id: input.caseId, organizationId, version: input.expectedVersion }, data: { version: { increment: 1 } } });
+    if (updated.count !== 1) throw new BusinessCaseError("This case is unavailable or changed. Reload before adding your note.");
+    await tx.businessCaseEvent.create({ data: { caseId: input.caseId, organizationId, actorId: userId, version: input.expectedVersion + 1, kind: "NOTE_ADDED", payload: JSON.stringify({ note: input.note }) } });
+  });
+}
+
+// Complete, bounded export; never silently truncate a case's evidence history.
+export async function exportBusinessCase(client: PrismaClient, userId: string, organizationId: string, caseId: string) {
+  const data = await client.$transaction(async tx => {
+    await membershipFor(tx, userId, organizationId, roles);
+    const item = await tx.businessRecallCase.findFirst({ where: { id: caseId, organizationId }, include: { location: { select: { code: true, name: true, archivedAt: true, currentSnapshotId: true } }, noticeHistory: true } });
+    if (!item) throw new BusinessAccessError();
+    const [observations, events, revisions, states] = await Promise.all([
+      tx.businessCaseObservation.findMany({ where: { caseId, organizationId }, orderBy: { sequence: "asc" }, take: 501 }),
+      tx.businessCaseEvent.findMany({ where: { caseId, organizationId }, orderBy: { version: "asc" }, take: 2001 }),
+      tx.noticeRevision.findMany({ where: { historyId: item.noticeHistoryId }, orderBy: { number: "asc" }, take: 501 }),
+      tx.syncState.findMany(),
+    ]);
+    if (observations.length > 500 || events.length > 2000 || revisions.length > 500) throw new BusinessCaseError("This case exceeds the interactive export limit. Ask the operator for a complete export; no partial report was generated.");
+    return {
+      format: "safekeep-business-case-v1", exportedAt: new Date().toISOString(),
+      limitations: ["Operational evidence record, not regulatory certification or a safety guarantee.", "Stock quantities are historical snapshots, not live shelf counts. Review decisions do not prove removal from shelves.", "Notice history begins with our first observation and may miss earlier or intermediate authority edits.", "Contains private business notes; share only with authorized recipients."],
+      case: { id: item.id, organizationId, locationId: item.locationId, stockKey: item.stockKey, status: item.status, affectedQuantity: item.affectedQuantity, version: item.version, createdAt: item.createdAt, updatedAt: item.updatedAt, location: item.location },
+      notice: { sourceAuthority: item.noticeHistory.sourceAuthority, externalId: item.noticeHistory.externalId, latestObservedVersion: item.noticeHistory.revisionCount },
+      sourceCoverage: sourceHealth(states),
+      observations: observations.map(row => ({ id: row.id, sequence: row.sequence, noticeRevisionId: row.noticeRevisionId, algorithmVersion: row.algorithmVersion, matchKind: row.matchKind, capturedAt: row.createdAt, capturedByUserId: row.observedById, stock: JSON.parse(row.stockEvidence), matching: JSON.parse(row.evidence) })),
+      noticeVersions: revisions.map(row => ({ id: row.id, number: row.number, observedAt: row.observedAt, observationSource: row.observationSource, contentHash: row.contentHash, content: JSON.parse(row.payload) })),
+      activity: events.map(row => ({ id: row.id, version: row.version, actorId: row.actorId, kind: row.kind, createdAt: row.createdAt, details: JSON.parse(row.payload) })),
+    };
+  }, { timeout: 15_000, isolationLevel: (pg() ? "RepeatableRead" : "Serializable") as Prisma.TransactionIsolationLevel });
+  await membershipFor(client, userId, organizationId, roles);
+  if (Buffer.byteLength(JSON.stringify(data), "utf8") > 10 * 1024 * 1024) throw new BusinessCaseError("This case exceeds the 10 MiB interactive export limit. Ask the operator for a complete export; no partial report was generated.");
+  return data;
 }

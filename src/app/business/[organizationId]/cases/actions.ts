@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBusinessAccount } from "@/lib/auth";
 import { BusinessAccessError } from "@/lib/business-data";
-import { BusinessCaseError, refreshBusinessCase, reviewBusinessCase, saveBusinessCase } from "@/lib/business-cases";
+import { addBusinessCaseNote, BusinessCaseError, refreshBusinessCase, reviewBusinessCase, saveBusinessCase } from "@/lib/business-cases";
 import { prisma } from "@/lib/prisma";
 
 export type CaseFormState = { message: string; caseId?: string; success?: boolean };
@@ -29,6 +29,10 @@ export async function caseMutation(_previous: CaseFormState, form: FormData): Pr
       case "review":
         await reviewBusinessCase(prisma, identity.id, organizationId, { caseId, expectedVersion: Number(value("expectedVersion")), observationId: value("observationId"), status: value("status"), note: value("note"), affectedQuantity: value("affectedQuantity") ? Number(value("affectedQuantity")) : undefined, evidenceReviewed: value("evidenceReviewed") === "yes" });
         message = "Review recorded. Earlier evidence and decisions remain in the activity history.";
+        break;
+      case "note":
+        await addBusinessCaseNote(prisma, identity.id, organizationId, { caseId, expectedVersion: Number(value("expectedVersion")), note: value("note") });
+        message = "Note added to the activity history. The review decision is unchanged.";
         break;
       default: return { message: "Choose a supported case action." };
     }

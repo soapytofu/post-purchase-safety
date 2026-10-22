@@ -8,7 +8,7 @@ import { PrismaClient } from "@prisma/client";
 import { provisionHousehold } from "@/lib/household-data";
 import { createOrganization, saveLocation, acceptBusinessInvitation, inviteBusinessMember, setLocationArchived } from "@/lib/business-data";
 import { previewInventoryCsv, commitInventoryImport } from "@/lib/business-inventory";
-import { getBusinessCase, listBusinessCases, refreshBusinessCase, reviewBusinessCase, saveBusinessCase } from "@/lib/business-cases";
+import { addBusinessCaseNote, exportBusinessCase, getBusinessCase, listBusinessCases, refreshBusinessCase, reviewBusinessCase, saveBusinessCase } from "@/lib/business-cases";
 import { noticeContent, recordNoticeRevision } from "@/lib/notice-history";
 import { syncRecallProvider } from "@/lib/sync-recalls";
 import type { NormalizedRecall } from "@/domain/types";
@@ -118,6 +118,29 @@ describe("saved business recall cases and source history", () => {
     assert.equal((await listBusinessCases(client, owner.id, org)).total, 1);
     assert.ok((await detail()).item.location.archivedAt);
   });
+  it("adds append-only handoff notes without changing the decision and exports complete scoped evidence", async () => {
+    const previous = await detail();
+    const input = { caseId, expectedVersion: previous.item.version, note: "Supplier called; awaiting the lot verification reference." };
+    await assert.rejects(addBusinessCaseNote(client, staff.id, org, input));
+    await assert.rejects(addBusinessCaseNote(client, other.id, foreign, input));
+    await addBusinessCaseNote(client, owner.id, org, input);
+    await assert.rejects(addBusinessCaseNote(client, owner.id, org, input), /changed/);
+    const updated = await detail();
+    assert.equal(updated.item.status, previous.item.status);
+    assert.equal(updated.item.affectedQuantity, previous.item.affectedQuantity);
+    assert.equal(updated.events[0].kind, "NOTE_ADDED");
+    const exported = await exportBusinessCase(client, owner.id, org, caseId);
+    assert.equal(exported.case.organizationId, org);
+    assert.equal(exported.observations.length, await client.businessCaseObservation.count({ where: { caseId } }));
+    assert.equal(exported.activity.length, await client.businessCaseEvent.count({ where: { caseId } }));
+    assert.equal(exported.noticeVersions.length, updated.item.noticeHistory.revisionCount);
+    assert.equal(exported.observations[0].stock.quantityOnHand, 5);
+    assert.equal(exported.observations.at(-1)!.stock.quantityOnHand, 9);
+    assert.ok(exported.limitations.some(text => text.includes("not regulatory certification")));
+    await assert.rejects(exportBusinessCase(client, staff.id, org, caseId));
+    await assert.rejects(exportBusinessCase(client, other.id, foreign, caseId));
+    await assert.rejects(exportBusinessCase(client, other.id, org, caseId));
+  });
   it("serializes concurrent source changes, saves and decisions without losing evidence", { skip: !hostedUrl }, async () => {
     await setLocationArchived(client, owner.id, org, location, false);
     await syncRecallProvider(provider([source]), client);
@@ -155,5 +178,14 @@ describe("saved business recall cases and source history", () => {
       await assert.rejects(client.$executeRawUnsafe(`UPDATE "${table}" SET id = id`), /append-only/);
       await assert.rejects(client.$executeRawUnsafe(`DELETE FROM "${table}"`), /append-only/);
     }
+  });
+  it("paginates activity and refuses oversized exports instead of silently truncating evidence", async () => {
+    const previous = await detail();
+    await client.businessCaseEvent.createMany({ data: Array.from({ length: 2001 }, (_, index) => ({ caseId, organizationId: org, actorId: owner.id, version: previous.item.version + index + 1, kind: "NOTE_ADDED", payload: JSON.stringify({ note: `Synthetic pagination fixture ${index}` }) })) });
+    await assert.rejects(exportBusinessCase(client, owner.id, org, caseId), /interactive export limit/);
+    const first = await detail(), last = await detail({ eventPage: Number.MAX_SAFE_INTEGER });
+    assert.equal(first.events.length, 20); assert.equal(last.activity.page, last.activity.pages);
+    assert.equal(last.events.at(-1)!.kind, "CREATED");
+    assert.equal((await detail({ eventPage: -5 })).activity.page, 1);
   });
 });
