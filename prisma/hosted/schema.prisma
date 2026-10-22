@@ -76,6 +76,7 @@ model Organization {
   locations BusinessLocation[]
   invitations BusinessInvitation[]
   inventoryImports InventoryImport[]
+  recallCases BusinessRecallCase[]
 }
 
 model BusinessMembership {
@@ -104,6 +105,7 @@ model BusinessLocation {
   currentSnapshotId String? @unique
   currentSnapshot InventorySnapshot? @relation("CurrentInventory", fields: [currentSnapshotId], references: [id], onDelete: Restrict)
   snapshots InventorySnapshot[] @relation("LocationInventory")
+  recallCases BusinessRecallCase[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -166,8 +168,10 @@ model InventoryStockRow {
   supplier String @default("")
   category String @default("")
   snapshot InventorySnapshot @relation(fields: [snapshotId, locationId, organizationId], references: [id, locationId, organizationId], onDelete: Restrict)
+  caseObservations BusinessCaseObservation[]
 
   @@unique([snapshotId, stockKey])
+  @@unique([id, locationId, organizationId])
   @@index([organizationId, locationId])
   @@index([snapshotId, locationId, organizationId])
 }
@@ -185,6 +189,102 @@ model BusinessInvitation {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
+}
+
+// Independent of the mutable live catalog: source pruning cannot erase history.
+model NoticeHistory {
+  id String @id @default(cuid())
+  sourceAuthority String
+  externalId String
+  revisionCount Int @default(0)
+  currentHash String @default("")
+  lockVersion Int @default(0)
+  createdAt DateTime @default(now())
+  revisions NoticeRevision[]
+  cases BusinessRecallCase[]
+
+  @@unique([sourceAuthority, externalId])
+}
+
+model NoticeRevision {
+  id String @id @default(cuid())
+  historyId String
+  number Int
+  contentHash String
+  payload String
+  observedAt DateTime @default(now())
+  observationSource String
+  history NoticeHistory @relation(fields: [historyId], references: [id], onDelete: Restrict)
+  observations BusinessCaseObservation[]
+
+  @@unique([historyId, number])
+  @@unique([id, historyId])
+}
+
+model BusinessRecallCase {
+  id String @id @default(cuid())
+  organizationId String
+  locationId String
+  stockKey String
+  noticeHistoryId String
+  status String @default("NEEDS_REVIEW")
+  affectedQuantity Int?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  location BusinessLocation @relation(fields: [locationId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  noticeHistory NoticeHistory @relation(fields: [noticeHistoryId], references: [id], onDelete: Restrict)
+  observations BusinessCaseObservation[]
+  events BusinessCaseEvent[]
+
+  @@unique([organizationId, locationId, stockKey, noticeHistoryId], map: "BusinessRecallCase_scope_key")
+  @@unique([id, organizationId])
+  @@unique([id, locationId, organizationId, noticeHistoryId], map: "BusinessRecallCase_evidence_scope_key")
+  @@index([organizationId, updatedAt])
+  @@index([locationId, organizationId])
+  @@index([noticeHistoryId])
+}
+
+model BusinessCaseObservation {
+  id String @id @default(cuid())
+  caseId String
+  sequence Int
+  organizationId String
+  locationId String
+  stockRowId String
+  noticeHistoryId String
+  noticeRevisionId String
+  algorithmVersion String
+  matchKind String
+  evidence String
+  stockEvidence String
+  observedById String
+  createdAt DateTime @default(now())
+  case BusinessRecallCase @relation(fields: [caseId, locationId, organizationId, noticeHistoryId], references: [id, locationId, organizationId, noticeHistoryId], onDelete: Restrict)
+  stockRow InventoryStockRow @relation(fields: [stockRowId, locationId, organizationId], references: [id, locationId, organizationId], onDelete: Restrict)
+  noticeRevision NoticeRevision @relation(fields: [noticeRevisionId, noticeHistoryId], references: [id, historyId], onDelete: Restrict)
+
+  @@unique([caseId, stockRowId, noticeRevisionId, algorithmVersion], map: "BusinessCaseObservation_dedupe_key")
+  @@unique([caseId, sequence])
+  @@index([stockRowId, locationId, organizationId])
+  @@index([noticeRevisionId, noticeHistoryId])
+  @@index([caseId, locationId, organizationId, noticeHistoryId], map: "BusinessCaseObservation_scope_idx")
+}
+
+model BusinessCaseEvent {
+  id String @id @default(cuid())
+  caseId String
+  organizationId String
+  version Int
+  actorId String
+  kind String
+  payload String
+  createdAt DateTime @default(now())
+  case BusinessRecallCase @relation(fields: [caseId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([caseId, version])
+  @@index([caseId, organizationId])
 }
 
 model Household {
