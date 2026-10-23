@@ -20,7 +20,7 @@ Staging activation was verified on October 23, 2026: the encrypted `STAGING_DATA
 
 The staging connection is privileged. Repository administrators and trusted `main` changes can cause jobs to use it: restrict repository write access, enable branch protection, and prefer a narrowly scoped ingestion database role before a public production launch. Database credentials are scoped only to the refresh step, not dependency installation, code generation, or pull-request jobs. This workflow never migrates, seeds, or sends emails. Matching may enqueue notifications for opted-in accounts; delivery remains a separate integration.
 
-GitHub schedules are best-effort and may be delayed. Public repository schedules can be disabled after 60 days of inactivity. Verify a completed manual run and a later scheduled run in Actions; enable GitHub Actions failure notifications. Do not configure a second scheduler for the same database without coordinating concurrency.
+GitHub schedules are best-effort and may be delayed. Public repository schedules can be disabled after 60 days of inactivity. Verify a completed manual run and a later scheduled run in Actions; enable GitHub Actions failure notifications. An optional [Supabase watchdog](RECALL_WATCHDOG.md) provides an independent clock and dispatches this **same** workflow/concurrency group. It is prepared but not installed or activated on staging. Do not add an independent ingestion worker without cross-worker locking.
 
 ## Monitoring and recovery
 
@@ -37,6 +37,6 @@ node --env-file=.env.staging --import tsx scripts/refresh-feeds.ts --apply
 
 Without `--apply`, the CLI only explains what it would do. Do not run `db:push` or seed staging to fix refresh issues. A failed source keeps its last good catalog; fix credentials/connectivity/schema compatibility and rerun the job. Normalization changes can create notice revisions and reopen business cases for review.
 
-The existing bearer-protected `POST /api/sync` remains available for a deployed-server scheduler and also handles configured email delivery. It returns 207 for partial/failed source coverage; schedulers must inspect the response, not treat every 2xx as full success. Choose one feed scheduler per database.
+The existing bearer-protected `POST /api/sync` remains available for a deployed-server scheduler and also handles configured email delivery. It returns 207 for partial/failed source coverage; schedulers must inspect the response, not treat every 2xx as full success. Use one ingestion execution path per database. The optional watchdog shares GitHub's path; local CLI and `/api/sync` calls do not share its concurrency guard and should not be scheduled alongside it.
 
 References: [FDA food enforcement API](https://open.fda.gov/apis/food/enforcement/), [FSIS Recall API](https://www.fsis.usda.gov/science-data/developer-resources/recall-api), [GitHub scheduled workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
