@@ -2,34 +2,37 @@ import { XMLParser } from "fast-xml-parser";
 import { z } from "zod";
 import type { NormalizedRecall } from "@/domain/types";
 import type { RecallProvider, RecallProviderResult } from "./recall-provider";
+import { fetchFeed } from "./feed-http";
 
 const FSIS_API_ENDPOINT = "https://www.fsis.usda.gov/fsis/api/recall/v/1";
 const FSIS_RSS_ENDPOINT = "https://www.fsis.usda.gov/fsis-content/rss/recalls.xml";
 const CDC_FOOD_SAFETY_FEED = "https://www2c.cdc.gov/podcasts/createrss.asp?c=146";
-const requestOptions = (accept: string) => ({ cache: "no-store" as const, signal: AbortSignal.timeout(25_000), headers: { Accept: accept, "User-Agent": "Mozilla/5.0 (compatible; SafeKeep/0.4; +https://github.com/soapytofu/post-purchase-safety)" } });
+const textOrList = z.union([z.string(), z.array(z.string())]).nullish();
 
 const fsisRecordSchema = z.object({
   field_title: z.string(),
   field_recall_url: z.string(),
   field_active_notice: z.string().nullish(),
-  field_states: z.string().nullish(),
+  field_states: textOrList,
   field_closed_date: z.string().nullish(),
-  field_establishment: z.string().nullish(),
+  field_establishment: textOrList,
   field_risk_level: z.string().nullish(),
   field_last_modified_date: z.string().nullish(),
-  field_product_items: z.string().nullish(),
+  field_product_items: textOrList,
   field_recall_classification: z.string().nullish(),
   field_recall_date: z.string(),
-  field_recall_number: z.string(),
-  field_recall_reason: z.string().nullish(),
+  field_recall_number: z.string().optional(),
+  field_recall_number_export: z.string().optional(),
+  field_recall_reason: textOrList,
+  langcode: z.string().optional(),
   field_recall_type: z.string().nullish(),
   field_summary: z.string().nullish(),
 }).passthrough();
 
 export type FsisRecall = z.infer<typeof fsisRecordSchema>;
 
-function text(value?: string | null): string {
-  return (value ?? "")
+function text(value?: string | string[] | null): string {
+  return (Array.isArray(value) ? value.join("; ") : value ?? "")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
@@ -68,11 +71,13 @@ function extractLots(value: string): string[] {
 export function normalizeFsisRecall(record: FsisRecall): NormalizedRecall {
   const productItems = text(record.field_product_items);
   const summary = text(record.field_summary);
+  const externalId = (record.field_recall_number || record.field_recall_number_export || "").trim();
+  if (!externalId) throw new Error("FSIS record is missing its notice identifier");
   return {
-    externalId: record.field_recall_number.trim(),
+    externalId,
     sourceAuthority: "USDA FSIS",
     headline: text(record.field_title),
-    description: summary.slice(0, 1_500) || record.field_recall_reason?.trim() || "See the official USDA FSIS notice for details.",
+    description: summary.slice(0, 1_500) || text(record.field_recall_reason) || "See the official USDA FSIS notice for details.",
     brand: text(record.field_establishment) || "Not specified",
     productName: productItems.slice(0, 500) || text(record.field_title),
     category: "Meat, poultry & processed egg products",
@@ -104,7 +109,7 @@ function rssItems(xml: string): RssItem[] {
 }
 
 function normalizeRssItem(item: RssItem): NormalizedRecall | null {
-  const sourceUrl = xmlValue(item.guid) || xmlValue(item.link);
+  const sourceUrl = [xmlValue(item.link), xmlValue(item.guid)].find(value => /^https?:\/\/(?:www\.)?fsis\.usda\.gov\//i.test(value)) ?? "";
   let url: URL;
   try { url = new URL(sourceUrl); } catch { return null; }
   if (!["fsis.usda.gov", "www.fsis.usda.gov"].includes(url.hostname.toLowerCase())) return null;
@@ -139,9 +144,7 @@ function normalizeRssItem(item: RssItem): NormalizedRecall | null {
 }
 
 async function fetchText(fetchImpl: typeof fetch, url: string, accept: string): Promise<string> {
-  const response = await fetchImpl(url, requestOptions(accept));
-  if (!response.ok) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
-  return response.text();
+  return fetchFeed(url, response => response.text(), { fetchImpl, accept });
 }
 
 export class FsisRecallProvider implements RecallProvider {
@@ -153,25 +156,35 @@ export class FsisRecallProvider implements RecallProvider {
   async fetchRecalls(): Promise<RecallProviderResult> {
     const failures: string[] = [];
     try {
-      const response = await this.fetchImpl(FSIS_API_ENDPOINT, requestOptions("application/json"));
-      if (!response.ok) throw new Error(`FSIS API returned ${response.status}`);
-      const parsed = z.array(fsisRecordSchema).safeParse(await response.json());
+      const parsed = z.array(fsisRecordSchema).safeParse(await fetchFeed(FSIS_API_ENDPOINT, response => response.json(), { fetchImpl: this.fetchImpl }));
       if (!parsed.success || !parsed.data.length) throw new Error("FSIS API returned an unexpected or empty response");
-      return { records: parsed.data.map(normalizeFsisRecall), status: "SUCCEEDED", replaceSnapshot: true };
+      // The API includes translated copies sharing the same recall number.
+      // Prefer English deterministically; retain a translation if it is the only copy.
+      const records = new Map<string, NormalizedRecall>();
+      const ordered = [...parsed.data].sort((a, b) => Number(a.langcode === "English") - Number(b.langcode === "English"));
+      for (const record of ordered) {
+        const normalized = normalizeFsisRecall(record);
+        records.set(normalized.externalId, normalized);
+      }
+      return { records: [...records.values()], status: "SUCCEEDED", replaceSnapshot: true };
     } catch (error) {
       failures.push(error instanceof Error ? error.message : "FSIS API failed");
     }
 
+    const fallback = new Map<string, NormalizedRecall>();
+    const loaded: string[] = [];
     for (const [label, endpoint] of [["FSIS RSS", FSIS_RSS_ENDPOINT], ["CDC government relay", CDC_FOOD_SAFETY_FEED]] as const) {
       try {
         const xml = await fetchText(this.fetchImpl, endpoint, "application/rss+xml, application/xml;q=0.9");
         const records = rssItems(xml).map(normalizeRssItem).filter((record): record is NormalizedRecall => Boolean(record));
         if (!records.length) throw new Error(`${label} contained no current FSIS notices`);
-        return { records, status: "PARTIAL", replaceSnapshot: false, message: `The full USDA feed is unavailable from this server. Recent USDA notices were loaded from ${label}; any prior full snapshot was preserved.` };
+        for (const record of records) if (!fallback.has(record.externalId)) fallback.set(record.externalId, record);
+        loaded.push(label);
       } catch (error) {
         failures.push(error instanceof Error ? error.message : `${label} failed`);
       }
     }
+    if (fallback.size) return { records: [...fallback.values()], status: "PARTIAL", replaceSnapshot: false, message: `Full USDA feed unavailable (${failures[0]}). Recent notices loaded from ${loaded.join(" and ")}; prior full coverage preserved. This is not a complete archive.` };
     throw new Error(failures.join("; "));
   }
 }

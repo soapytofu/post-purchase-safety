@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { NormalizedRecall } from "@/domain/types";
 import type { RecallProvider } from "./recall-provider";
+import { fetchFeed } from "./feed-http";
 
 const OPENFDA_ENDPOINT = "https://api.fda.gov/food/enforcement.json";
 
@@ -91,10 +92,9 @@ export class OpenFdaRecallProvider implements RecallProvider {
       if (skip > 25_000) throw new Error("openFDA result set exceeds the supported complete-pagination window");
       const params = new URLSearchParams({ search: 'status:"Ongoing"', sort: "report_date:desc", limit: String(limit), skip: String(skip) });
       if (this.apiKey) params.set("api_key", this.apiKey);
-      const response = await fetch(`${OPENFDA_ENDPOINT}?${params}`, { cache: "no-store", signal: AbortSignal.timeout(20_000), headers: { Accept: "application/json", "User-Agent": "SafeKeep/0.3 (consumer safety monitor)" } });
-      if (!response.ok) throw new Error(`openFDA returned ${response.status}`);
-      const parsed = responseSchema.safeParse(await response.json());
+      const parsed = responseSchema.safeParse(await fetchFeed(`${OPENFDA_ENDPOINT}?${params}`, response => response.json()));
       if (!parsed.success) throw new Error("openFDA returned an unexpected response shape");
+      if (parsed.data.meta && (parsed.data.meta.results.skip !== skip || (total !== null && parsed.data.meta.results.total !== total))) throw new Error("openFDA changed during pagination; the previous snapshot was preserved");
       total = parsed.data.meta?.results.total ?? parsed.data.results.length;
       if (!parsed.data.results.length && skip < total) throw new Error("openFDA pagination ended before all records were received");
       for (const record of parsed.data.results) {

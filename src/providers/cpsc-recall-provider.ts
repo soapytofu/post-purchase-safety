@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { NormalizedRecall } from "@/domain/types";
 import type { RecallProvider } from "./recall-provider";
+import { fetchFeed } from "./feed-http";
 
 const CPSC_ENDPOINT = "https://www.saferproducts.gov/RestWebServices/Recall";
 
@@ -83,9 +84,7 @@ export class CpscRecallProvider implements RecallProvider {
     const start = new Date(this.now());
     start.setUTCFullYear(start.getUTCFullYear() - this.yearsOfHistory);
     const params = new URLSearchParams({ format: "json", RecallDateStart: start.toISOString().slice(0, 10) });
-    const response = await fetch(`${CPSC_ENDPOINT}?${params}`, { cache: "no-store", signal: AbortSignal.timeout(30_000), headers: { Accept: "application/json", "User-Agent": "SafeKeep/0.3 (consumer safety monitor)" } });
-    if (!response.ok) throw new Error(`CPSC returned ${response.status}`);
-    const parsed = responseSchema.safeParse(await response.json());
+    const parsed = responseSchema.safeParse(await fetchFeed(`${CPSC_ENDPOINT}?${params}`, response => response.json()));
     if (!parsed.success) throw new Error("CPSC returned an unexpected response shape");
     return parsed.data.map(normalizeCpscRecall);
   }

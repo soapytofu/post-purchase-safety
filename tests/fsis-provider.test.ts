@@ -27,6 +27,27 @@ const relayXml = `<?xml version="1.0"?><rss version="2.0"><channel>
 </channel></rss>`;
 
 describe("USDA FSIS provider", () => {
+  it("accepts live array fields, exported IDs, and selects English over duplicate translations", async () => {
+    const english = { ...apiRecord, langcode: "English", field_establishment: ["Example Foods LLC"], field_product_items: [apiRecord.field_product_items], field_states: ["Nationwide"], field_recall_reason: ["Contamination"], field_recall_number: undefined, field_recall_number_export: "PHA-2026-01" };
+    const spanish = { ...english, langcode: "Spanish", field_title: "Spanish translation" };
+    const mockFetch = (async () => Response.json([english, spanish])) as typeof fetch;
+    const result = await new FsisRecallProvider(mockFetch).fetchRecalls();
+    assert.equal(result.status, "SUCCEEDED");
+    assert.equal(result.records.length, 1);
+    assert.equal(result.records[0].externalId, "PHA-2026-01");
+    assert.equal(result.records[0].headline, apiRecord.field_title);
+    assert.equal(result.records[0].brand, "Example Foods LLC");
+    assert.deepEqual(result.records[0].upcs, ["012345678905"]);
+  });
+  it("unions RSS fallbacks, deduplicates notices, and accepts non-URL GUIDs", async () => {
+    const direct = relayXml.replace('<guid isPermaLink="true">https://www.fsis.usda.gov/recalls-alerts/star-foods-recalls-raw-beef</guid>', '<guid>internal-id</guid><link>https://www.fsis.usda.gov/recalls-alerts/star-foods-recalls-raw-beef</link>');
+    const mockFetch = (async input => String(input).includes("/api/") ? new Response("blocked", { status: 403 }) : new Response(direct)) as typeof fetch;
+    const result = await new FsisRecallProvider(mockFetch).fetchRecalls();
+    assert.equal(result.status, "PARTIAL");
+    assert.equal(result.replaceSnapshot, false);
+    assert.equal(result.records.length, 1);
+    assert.match(result.message!, /FSIS RSS and CDC/);
+  });
   it("does not confuse the issuing agency with a recalling firm", async () => {
     const xml = relayXml.replace("Star Foods Recalls Raw Beef Products Due to Lack of Inspection", "FSIS Issues Public Health Alert for Chicken Products");
     const mockFetch = (async () => new Response(xml, { status: 200 })) as typeof fetch;

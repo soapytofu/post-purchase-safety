@@ -46,4 +46,13 @@ describe("openFDA provider normalization", () => {
       globalThis.fetch = originalFetch;
     }
   });
+  it("rejects changing pagination totals without returning a partial snapshot", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async input => {
+      const skip = Number(new URL(String(input)).searchParams.get("skip"));
+      return Response.json({ meta: { results: { total: skip ? 3 : 2, skip, limit: 1 } }, results: [{ ...record, recall_number: `H-${skip}` }] });
+    }) as typeof fetch;
+    try { await assert.rejects(new OpenFdaRecallProvider(1).fetchRecalls(), /changed during pagination/); }
+    finally { globalThis.fetch = originalFetch; }
+  });
 });
