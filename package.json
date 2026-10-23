@@ -12,6 +12,7 @@
     "test:business-ui": "tsx scripts/smoke-business-cases.ts",
     "benchmark:business": "tsx scripts/benchmark-business.ts",
     "history:backfill": "tsx scripts/backfill-notice-history.ts",
+    "feeds:refresh": "tsx scripts/refresh-feeds.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",

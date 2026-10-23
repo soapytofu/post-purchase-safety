@@ -8,13 +8,14 @@ import { PageHeader } from "@/components/page-header";
 import { prisma } from "@/lib/prisma";
 import { broadCategoryFor, categoryWhere, noticeCategories } from "@/lib/notice-category";
 import { recallDateFilter } from "@/lib/recent-recalls";
-import { sourceHealth } from "@/lib/source-health";
+import { sourceCoverage, sourceHealth } from "@/lib/source-health";
 import { noticeContains } from "@/lib/notice-search";
 import { redirect } from "next/navigation";
 import { noticeBrand } from "@/lib/notice-brand";
 
 const PAGE_SIZE = 12;
 const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
+const refreshTime = (value: Date) => new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(value) + " UTC";
 
 function sourceWhere(source: string) {
   if (source === "fda") return { sourceAuthority: { contains: "FDA" }, isFixture: false } as const;
@@ -64,8 +65,16 @@ export default async function Notices({ searchParams }: { searchParams: Promise<
     <PageHeader eyebrow="Public recall library" title="Latest recalls" description="Browse food and product recalls before you buy. Compare your exact item with the official notice." />
     {!sourceHealth(syncStates).healthy && <p className="coverage-warning">Coverage is incomplete or out of date. We cannot guarantee every recent recall appears here; check the issuing authority before making a safety decision.</p>}
     <details className="coverage-details"><summary>Source coverage and refresh details</summary>
+    <p>A successful refresh covers each feed’s configured scope, not every recall. Publication delays and missing identifiers can still occur. Always verify the official notice.</p>
     <section className="coverage-grid" aria-label="Source coverage">
-      {syncStates.filter((state) => state.provider !== "demo-fixtures").map((state) => { const lastSuccess = state.lastSuccessAt ?? (state.syncedAt.getTime() > 0 ? state.syncedAt : null); const label = state.provider === "openfda-food-enforcement" ? "FDA food enforcement" : state.provider === "usda-fsis-recalls" ? "USDA meat, poultry & eggs" : state.provider === "cpsc-recalls" ? "CPSC consumer products" : state.provider; return <article key={state.id} className={state.status === "FAILED" ? "coverage-failed" : state.status === "PARTIAL" ? "coverage-partial" : ""}><div><strong>{label}</strong><span>{state.status === "FAILED" ? "Last refresh failed; earlier records, if any, remain available" : state.status === "PARTIAL" ? `${state.recordCount} recent record${state.recordCount === 1 ? "" : "s"} from fallback feed; full coverage is not established` : `${state.recordCount} records in latest successful sync`}</span>{state.errorMessage && <small>{state.errorMessage}</small>}</div><time>{lastSuccess ? `${state.status === "PARTIAL" ? "Observed" : "Last refreshed"} as of ${date(lastSuccess)}` : "Never successfully synced"}</time></article>; })}
+      {syncStates.filter((state) => state.provider !== "demo-fixtures").map((state) => {
+        const lastSuccess = state.lastSuccessAt;
+        const label = state.provider === "openfda-food-enforcement" ? "FDA food enforcement" : state.provider === "usda-fsis-recalls" ? "USDA meat, poultry & eggs" : state.provider === "cpsc-recalls" ? "CPSC consumer products" : state.provider;
+        return <article key={state.id} className={state.status === "FAILED" ? "coverage-failed" : state.status === "PARTIAL" ? "coverage-partial" : ""}>
+          <div><strong>{label}</strong><span>{state.status === "FAILED" ? "Last refresh failed; earlier records, if any, remain available" : state.status === "PARTIAL" ? `${state.recordCount} retained records, including fallback notices; full coverage is not established` : `${state.recordCount} records in latest successful sync`}</span><small>{sourceCoverage[state.provider]}</small>{state.errorMessage && <small>{state.errorMessage}</small>}</div>
+          <time>{lastSuccess ? `${state.status === "PARTIAL" ? "Last partial refresh" : "Last refreshed"}: ${refreshTime(lastSuccess)}` : "Never successfully synced"}</time>
+        </article>;
+      })}
       {!syncStates.some((state) => state.provider !== "demo-fixtures") && <article><div><strong>No live sources synchronized yet</strong><span>Source refresh has not yet loaded public notices.</span></div><time>Coverage not established</time></article>}
     </section></details>
     <nav className="browse-categories" aria-label="Browse notices by category"><Link className={category === "all" ? "active" : ""} aria-current={category === "all" ? "page" : undefined} href={href({ q, source, category: "all", page: 1, period })}>All categories</Link>{noticeCategories.map((item) => <Link className={category === item.id ? "active" : ""} aria-current={category === item.id ? "page" : undefined} title={item.description} href={href({ q, source, category: item.id, page: 1, period })} key={item.id}>{item.label}</Link>)}</nav>

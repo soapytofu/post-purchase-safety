@@ -16,5 +16,7 @@ describe("startup source coverage health", () => {
     for (const status of ["PARTIAL", "FAILED", "UNKNOWN"]) assert.equal(sourceHealth([{ ...complete[0], status }, ...complete.slice(1)], now).healthy, false);
     assert.equal(sourceHealth([{ ...complete[0], recordCount: 0 }, ...complete.slice(1)], now).healthy, false);
     assert.equal(sourceHealth([{ ...complete[0], lastSuccessAt: new Date(now - 49 * 60 * 60 * 1000) }, ...complete.slice(1)], now).healthy, false);
+    assert.equal(sourceHealth([{ ...complete[0], lastSuccessAt: new Date(now - 4 * 60 * 60 * 1000) }, ...complete.slice(1)], now).healthy, false);
+    assert.equal(sourceHealth([{ ...complete[0], lastSuccessAt: new Date(now - 2 * 60 * 60 * 1000) }, ...complete.slice(1)], now).healthy, true);
   });
 });

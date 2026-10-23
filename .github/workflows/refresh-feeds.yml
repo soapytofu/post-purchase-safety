@@ -1,0 +1,35 @@
+name: Refresh staging recall feeds
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-recall-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'soapytofu/post-purchase-safety' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+      # Database credentials are intentionally unavailable during dependency
+      # installation and code generation, and never supplied to PR workflows.
+      - run: npm ci
+      - run: npm run db:hosted:generate
+      - name: Refresh all feeds and check coverage
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          FDA_API_KEY: ${{ secrets.FDA_API_KEY }}
+        run: npm run feeds:refresh -- --apply
