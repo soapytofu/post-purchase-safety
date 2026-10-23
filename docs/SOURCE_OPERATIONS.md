@@ -12,6 +12,8 @@ Requests retry transient transport failures, 408, 429, and 5xx up to three attem
 
 ## Hourly staging workflow
 
+Staging activation was verified on October 23, 2026: the encrypted `STAGING_DATABASE_URL` repository secret was configured, and [manual cloud run 39898027775](https://github.com/soapytofu/post-purchase-safety/actions/runs/39898027775) completed successfully. GitHub refreshed 1,097 FDA records, 1,242 USDA notices, and 959 CPSC notices. Before/after fingerprints confirmed that household, purchase, and inventory data were unchanged (six purchases). The hourly trigger is enabled; this verification covered a manually dispatched cloud run, not yet a scheduled invocation. No credentials or additional `.env.staging` values were committed or uploaded with this documentation.
+
 `.github/workflows/refresh-feeds.yml` runs at minute 17 every hour (UTC) on `main`, or manually using **Actions → Refresh staging recall feeds → Run workflow**. Concurrency permits only one workflow execution at a time. The runner refreshes directly against PostgreSQL, so it does not require a public deployment or an awake laptop.
 
 **Activation requires an encrypted repository Actions secret named `STAGING_DATABASE_URL`.** Set it to the staging session-pooler PostgreSQL connection string from your private `.env.staging`. Do not paste it into source code, chat, an issue, a workflow file, or logs. `FDA_API_KEY` is an optional second Actions secret. The job intentionally fails when database configuration is missing; a committed schedule alone does not prove that automation is active.
