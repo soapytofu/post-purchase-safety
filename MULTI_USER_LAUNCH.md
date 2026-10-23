@@ -132,6 +132,8 @@ Updated Next.js and `eslint-config-next` to 16.4.2, with locked `sharp` 0.35.5 a
 
 Full development audit still reports five affected dependency nodes from one unpatched [`braces` advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) in the Next ESLint → fast-glob → micromatch chain. It is absent from production dependencies. No forced downgrade of the framework’s lint configuration or unreviewed package substitution was applied. Revisit when an upstream patch is available; run lint only on trusted workspaces. CI uses Node 22.14; the local machine currently has Node 22.11 and emits a development-tool engine warning, so use the documented Node 22.14+ baseline for fresh installations.
 
+Verification for this milestone: the complete SQLite run passed 110 tests with seven PostgreSQL-only checks skipped; the PostgreSQL isolation suite passed all 44 checks. Lint/type checks and the hosted build passed. The reproducible Chrome flow additionally checked before/after notice changes, preserved rejected drafts, household manual purchase creation and separate-household visibility. These were local checks with synthetic accounts; CI is configured to repeat them, but real-account staging acceptance is still required.
+
 ## Reference documentation
 
 - Supabase SSR setup: https://supabase.com/docs/guides/auth/server-side/creating-a-client

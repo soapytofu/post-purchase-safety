@@ -123,7 +123,8 @@ export async function getBusinessCase(client: PrismaClient, userId: string, orga
   const activity = pages(eventCount, options.eventPage), history = pages(item.noticeHistory.revisionCount, options.revisionPage);
   const [events, revisions, currentNotice, states] = await Promise.all([
     client.businessCaseEvent.findMany({ where: { caseId, organizationId }, orderBy: { version: "desc" }, take: 20, skip: (activity.page - 1) * 20 }),
-    client.noticeRevision.findMany({ where: { historyId: item.noticeHistoryId }, orderBy: { number: "desc" }, take: 20, skip: (history.page - 1) * 20 }),
+    // One look-behind version lets the last visible row show its actual diff.
+    client.noticeRevision.findMany({ where: { historyId: item.noticeHistoryId }, orderBy: { number: "desc" }, take: 21, skip: (history.page - 1) * 20 }),
     client.recall.findFirst({ where: { sourceAuthority: item.noticeHistory.sourceAuthority, externalId: item.noticeHistory.externalId, isFixture: false } }),
     client.syncState.findMany(),
   ]);

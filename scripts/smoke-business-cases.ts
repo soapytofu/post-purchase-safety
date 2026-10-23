@@ -32,6 +32,7 @@ async function main() {
   const source = { sourceAuthority: "FDA", externalId: `browser-case-notice-${Date.now()}`, headline: "Orchard almond butter recall", description: "Synthetic browser test notice. Verify affected lot A1.", productName: "Organic almond butter", brand: "Orchard", category: "Food", upcs: ["012345678905"], lotNumbers: ["A1"], recallDate: new Date("2026-10-21"), recommendedAction: "Contact the supplier", sourceUrl: "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts", rawData: { synthetic: true } };
   const provider = (records: typeof source[]) => ({ name: "browser-test", managedAuthorities: ["FDA"], fetchRecalls: async () => ({ records, status: "SUCCEEDED" as const, replaceSnapshot: true }) });
   await syncRecallProvider(provider([source]), p);
+  const originalPurchases = await p.purchase.findMany({ orderBy: { id: "asc" } });
   const auth = createServer((req, res) => { const token = req.headers.authorization?.replace("Bearer ", ""); let id = foreign.id; try { id = JSON.parse(Buffer.from(token!.split(".")[1], "base64url").toString()).sub; } catch {} res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(user(id))); });
   await new Promise<void>((resolve, reject) => { auth.once("error", reject); auth.listen(0, "127.0.0.1", resolve); });
   const authPort = (auth.address() as { port: number }).port;
@@ -104,6 +105,10 @@ async function main() {
     assert.equal(await page.getByRole("button", { name: "Record review", exact: true }).count(), 0);
     await page.getByRole("button", { name: "Capture latest notice evidence", exact: true }).click();
     await page.getByRole("heading", { name: "Notice version 2", exact: true }).waitFor();
+    const revised = page.locator(".case-revision").filter({ has: page.locator("summary", { hasText: "Version 2" }) });
+    await revised.locator("summary").first().click();
+    assert.equal(await revised.locator(".case-diff dd > div p").first().textContent(), "Contact the supplier");
+    assert.ok((await revised.locator(".case-diff dd > div").last().innerText()).includes("Revised supplier instructions"));
     await page.getByLabel("Review decision").selectOption("NOT_AFFECTED");
     await page.getByLabel("Review notes").fill("Supplier confirmed our saved lot is outside revised scope.");
     await page.getByLabel("I checked the official notice").check();
@@ -114,17 +119,35 @@ async function main() {
     assert.equal(await page.getByRole("button", { name: "Record review", exact: true }).count(), 0);
     await page.goto(`${base}/cases`);
     await page.getByRole("link", { name: "Review case", exact: true }).waitFor();
+    assert.deepEqual(await p.purchase.findMany({ orderBy: { id: "asc" } }), originalPurchases);
+    // The separate household UI must still work after the business workflow.
+    await page.goto(`${origin}/`); await page.getByRole("heading", { name: "Household overview", exact: true }).waitFor();
+    await page.goto(`${origin}/add`); await page.getByRole("heading", { name: "Track a recent purchase", exact: true }).waitFor();
+    const householdProduct = `Browser household desk ${org.id}`;
+    const purchaseForm = page.locator(".purchase-form");
+    await purchaseForm.getByLabel("Product name *", { exact: true }).fill(householdProduct);
+    await purchaseForm.getByLabel("Brand *", { exact: true }).fill("Synthetic household brand");
+    await purchaseForm.getByLabel("Category *", { exact: true }).fill("Furniture");
+    await purchaseForm.getByLabel("Retailer *", { exact: true }).fill("Synthetic test retailer");
+    await purchaseForm.getByLabel("Purchase date *", { exact: true }).fill("2026-10-21");
+    await purchaseForm.getByRole("button", { name: "Save & check purchase" }).click();
+    await page.waitForURL(url => url.pathname === "/purchases");
+    await page.getByText(householdProduct, { exact: true }).waitFor();
+    assert.equal(await p.businessRecallCase.count({ where: { organizationId: org.id } }), 1);
+    await page.goto(`${origin}/alerts`); await page.getByRole("heading", { name: "Potential recall matches", exact: true }).waitFor();
     await login(staff); await page.goto(caseUrl);
     await page.getByText("Read-only access.", { exact: false }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Record review", exact: true }).count(), 0);
     assert.equal((await context.request.get(`${caseUrl}/export`)).status(), 404);
+    await page.goto(`${origin}/purchases`); await page.getByRole("heading", { name: "Everything you’re tracking", exact: true }).waitFor();
+    assert.equal(await page.getByText(householdProduct, { exact: true }).count(), 0);
     await login(foreign); await page.goto(caseUrl); await page.getByRole("heading", { name: "404", exact: true }).waitFor();
     assert.equal(await page.getByRole("heading", { name: "Saved stock", exact: true }).count(), 0);
     assert.equal((await context.request.get(`${caseUrl}/export`)).status(), 404);
     await context.clearCookies(); await page.goto(caseUrl); await page.waitForURL(url => url.pathname === "/login" && !!url.searchParams.get("next"));
     assert.equal((await context.request.get(`${caseUrl}/export`)).status(), 401);
     assert.deepEqual(errors, []);
-    console.log("PASS: save, review, note, export, notice revision/reopen/refresh, old evidence, case list, staff/foreign/anonymous permissions, and 320/390/1440px layouts.");
+    console.log("PASS: business cases, rejected drafts, notes/exports, notice diffs, role isolation, household purchase flow/isolation, and 320/390/1440px layouts.");
   } catch (error) {
     console.error(logs);
     throw error;
