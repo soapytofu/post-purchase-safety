@@ -1,8 +1,15 @@
 name: Refresh staging recall feeds
+run-name: Recall refresh (${{ github.event_name == 'schedule' && 'hourly schedule' || inputs.trigger || 'operator' }})
 on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+    inputs:
+      trigger:
+        description: Who requested this refresh?
+        type: choice
+        options: [operator, supabase-watchdog]
+        default: operator
 
 permissions:
   contents: read
@@ -32,4 +39,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           FDA_API_KEY: ${{ secrets.FDA_API_KEY }}
-        run: npm run feeds:refresh -- --apply
+          REFRESH_TRIGGER: ${{ inputs.trigger }}
+        run: |
+          if [ "$REFRESH_TRIGGER" = "supabase-watchdog" ]; then
+            npm run feeds:refresh -- --apply --if-needed
+          else
+            npm run feeds:refresh -- --apply
+          fi
