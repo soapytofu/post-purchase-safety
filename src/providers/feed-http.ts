@@ -10,7 +10,7 @@ export async function fetchFeed<T>(url: string, parse: (response: Response) => P
     try {
       response = await (options.fetchImpl ?? fetch)(url, {
         cache: "no-store", signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
-        headers: { Accept: options.accept ?? "application/json", "User-Agent": "SafeKeep/0.5 (+https://github.com/soapytofu/post-purchase-safety)" },
+        headers: { Accept: options.accept ?? "application/json", "User-Agent": "SafeKeep/0.5" },
       });
     } catch {
       if (attempt === 2) throw new Error("Source request failed after 3 attempts (network or timeout)");

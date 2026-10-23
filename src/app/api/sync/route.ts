@@ -11,6 +11,6 @@ export async function POST(request: Request) {
   const startedAt = new Date().toISOString();
   const results = await syncAllLiveProviders();
   const notifications = await dispatchRecallEmails();
-  const failed = results.filter((result) => result.status === "failed").length;
+  const failed = results.filter((result) => result.status !== "succeeded").length;
   return Response.json({ startedAt, completedAt: new Date().toISOString(), results, notifications }, { status: failed || notifications.failed ? 207 : 200, headers: { "Cache-Control": "no-store" } });
 }
