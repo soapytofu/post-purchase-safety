@@ -27,7 +27,7 @@ for (const [name, trigger, schedule, conditional] of [
     // work or dependency installation can occur during this contract test.
     const result = spawnSync("bash", ["-eu", "-c", `npm() { printf '%s\\n' "$*"; }\n${refreshStep}`], {
       encoding: "utf8",
-      env: { PATH: process.env.PATH, REFRESH_TRIGGER: trigger, REFRESH_SCHEDULE: schedule },
+      env: { NODE_ENV: "test", PATH: process.env.PATH, REFRESH_TRIGGER: trigger, REFRESH_SCHEDULE: schedule },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), `run feeds:refresh -- --apply${conditional ? " --if-needed" : ""}`);
