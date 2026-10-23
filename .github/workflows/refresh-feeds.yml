@@ -1,8 +1,11 @@
 name: Refresh staging recall feeds
-run-name: Recall refresh (${{ github.event_name == 'schedule' && 'hourly schedule' || inputs.trigger || 'operator' }})
+run-name: Recall refresh (${{ github.event.schedule == '53 * * * *' && 'scheduled recovery' || github.event_name == 'schedule' && 'hourly schedule' || inputs.trigger || 'operator' }})
 on:
   schedule:
-    - cron: '17 * * * *'
+    # Off-hour primary slot plus a recovery opportunity if a trigger is dropped.
+    # Both remain best-effort GitHub schedules, not independent clocks.
+    - cron: '23 * * * *'
+    - cron: '53 * * * *'
   workflow_dispatch:
     inputs:
       trigger:
@@ -40,8 +43,9 @@ jobs:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           FDA_API_KEY: ${{ secrets.FDA_API_KEY }}
           REFRESH_TRIGGER: ${{ inputs.trigger }}
+          REFRESH_SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if [ "$REFRESH_TRIGGER" = "supabase-watchdog" ]; then
+          if [ "$REFRESH_TRIGGER" = "supabase-watchdog" ] || [ "$REFRESH_SCHEDULE" = "53 * * * *" ]; then
             npm run feeds:refresh -- --apply --if-needed
           else
             npm run feeds:refresh -- --apply
