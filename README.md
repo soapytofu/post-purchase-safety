@@ -49,7 +49,7 @@ Open [http://localhost:3000](http://localhost:3000). The setup command creates `
 
 An openFDA API key is optional. Anonymous access uses FDA's lower public rate limits; set `FDA_API_KEY` in `.env` for regular use.
 
-For an operator-controlled daily refresh, set a random `SYNC_SECRET` of at least 24 characters and send `POST /api/sync` with an `Authorization: Bearer <secret>` header. `/api/health` exposes source freshness without exposing purchase data. Local mode is loopback-development-only. Hosted mode requires `AUTH_MODE=supabase`, configured Supabase keys, and PostgreSQL in production. Private pages/actions verify account and membership near the database, not just in the proxy. Manual sync is local-only. Keep the development server private.
+For a deployed-server refresh, set a random `SYNC_SECRET` of at least 24 characters and send `POST /api/sync` with an `Authorization: Bearer <secret>` header. `/api/health` exposes source freshness without exposing purchase data. Local mode is loopback-development-only. Hosted mode requires `AUTH_MODE=supabase`, configured Supabase keys, and PostgreSQL in production. Private pages/actions verify account and membership near the database, not just in the proxy. Manual sync is local-only. Keep the development server private.
 
 An hourly staging GitHub Actions workflow and `npm run feeds:refresh -- --apply` operator command now refresh all three feeds independently. The workflow requires the encrypted `STAGING_DATABASE_URL` repository secret before it can run successfully. Partial/failed feeds fail the job, and health becomes stale after three hours. See [source operations and activation](docs/SOURCE_OPERATIONS.md) for coverage limits, secret setup, monitoring, and recovery. The CLI does not send emails.
 
